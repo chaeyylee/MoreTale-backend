@@ -4,9 +4,11 @@ import com.moretale.domain.profile.entity.StoryPreference;
 import com.moretale.domain.story.dto.*;
 import com.moretale.domain.story.entity.Slide;
 import com.moretale.domain.story.entity.Story;
+import com.moretale.domain.story.entity.StoryToken;
 import com.moretale.domain.story.enums.TraditionalTale;
 import com.moretale.domain.story.repository.SlideRepository;
 import com.moretale.domain.story.repository.StoryRepository;
+import com.moretale.domain.story.repository.StoryTokenRepository;
 import com.moretale.domain.story.util.PromptBuilder;
 import com.moretale.domain.user.entity.User;
 import com.moretale.domain.profile.entity.UserProfile;
@@ -35,6 +37,10 @@ public class StoryService {
     private final AIStoryService aiStoryService;
     private final TTSService ttsService;
 
+    // 추가
+    private final StoryTokenService storyTokenService;
+    private final StoryTokenRepository storyTokenRepository;
+
     // 온보딩 데이터 기반 동화 생성 초기값 조회
     // GET /api/stories/init
     public StoryInitResponse getStoryInitData(String email, Long profileId) {
@@ -46,7 +52,7 @@ public class StoryService {
 
         if (profile.getStoryPreference() == StoryPreference.CUSTOM &&
                 profile.getCustomStoryPreference() != null) {
-            // 🔧 CUSTOM인 경우 customStoryPreference 텍스트 분석
+            // CUSTOM인 경우 customStoryPreference 텍스트 분석
             recommendedTale = TraditionalTale.findByCustomText(
                     profile.getCustomStoryPreference()
             );
@@ -75,7 +81,7 @@ public class StoryService {
 
         if (profile.getStoryPreference() == StoryPreference.CUSTOM &&
                 profile.getCustomStoryPreference() != null) {
-            // 🔧 CUSTOM인 경우 customStoryPreference 텍스트 분석
+            // CUSTOM인 경우 customStoryPreference 텍스트 분석
             tale = TraditionalTale.findByCustomText(profile.getCustomStoryPreference());
 
             // CUSTOM이면 전래동화 대신 사용자 입력 텍스트 사용
@@ -204,22 +210,16 @@ public class StoryService {
     public StoryResponse saveStory(String email, StorySaveRequest request) {
         User user = getUserByEmail(email);
 
-        // 1. 프로필 존재 여부 확인 (유저 조건 없이 조회)
         UserProfile profile = userProfileRepository.findById(request.getProfileId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_NOT_FOUND));
 
-        // 2. 프로필 소유권 검증
         if (!profile.getUser().getUserId().equals(user.getUserId())) {
-            log.warn(
-                    "보안 위반 시도 - 유저 {}가 유저 {}의 프로필 {}을 사용하려고 함",
-                    user.getUserId(),
-                    profile.getUser().getUserId(),
-                    profile.getProfileId()
-            );
+            log.warn("보안 위반 시도 - 유저 {}가 유저 {}의 프로필 {}을 사용하려고 함",
+                    user.getUserId(), profile.getUser().getUserId(), profile.getProfileId());
             throw new BusinessException(ErrorCode.STORY_ACCESS_DENIED);
         }
 
-        // 3. Story 엔티티 생성
+        // Story 엔티티 생성
         Story story = Story.builder()
                 .title(request.getTitle())
                 .prompt(request.getPrompt())
@@ -230,7 +230,7 @@ public class StoryService {
                 .isPublic(false)
                 .build();
 
-        // 4. Slide 엔티티 생성 및 연관관계 설정
+        // Slide 엔티티 생성
         if (request.getSlides() != null) {
             request.getSlides().forEach(slideReq -> {
                 Slide slide = Slide.builder()
@@ -245,16 +245,29 @@ public class StoryService {
             });
         }
 
-        // 5. 저장
+        // Story + Slide 먼저 저장 (slide_id 획득 필요)
         Story savedStory = storyRepository.save(story);
         slideRepository.saveAll(savedStory.getSlides());
 
-        log.info(
-                "동화 저장 완료 - storyId={}, userId={}",
-                savedStory.getStoryId(),
-                user.getUserId()
-        );
+        // 토큰 생성 및 저장 (동화 저장 시점에 미리 생성)
+        String sourceLanguage = profile.getPrimaryLanguage() != null
+                ? profile.getPrimaryLanguage() : "ko";
+        String targetLanguage = profile.getSecondaryLanguage() != null
+                ? profile.getSecondaryLanguage() : "en";
 
+        savedStory.getSlides().forEach(slide -> {
+            try {
+                List<StoryToken> tokens = storyTokenService.generateTokensForSlide(
+                        slide, sourceLanguage, targetLanguage
+                );
+                tokens.forEach(slide::addToken);
+                storyTokenRepository.saveAll(tokens);
+            } catch (Exception e) {
+                log.error("토큰 생성 실패 (건너뜀) - slideId={}", slide.getSlideId(), e);
+            }
+        });
+
+        log.info("동화 저장 완료 - storyId={}, userId={}", savedStory.getStoryId(), user.getUserId());
         return StoryResponse.from(savedStory);
     }
 

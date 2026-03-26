@@ -3,6 +3,9 @@ package com.moretale.domain.story.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "slides")
 @Getter
@@ -38,4 +41,16 @@ public class Slide {
 
     @Column(name = "audio_url_native", length = 500)
     private String audioUrlNative;
+
+    // 토큰 연관관계
+    @OneToMany(mappedBy = "slide", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("tokenOrder ASC")
+    @Builder.Default
+    private List<StoryToken> tokens = new ArrayList<>();
+
+    // 편의 메서드
+    public void addToken(StoryToken token) {
+        tokens.add(token);
+        token.setSlide(this);
+    }
 }

@@ -6,6 +6,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,6 +23,9 @@ public class SlideResponse {
     private String audioUrlKr;
     private String audioUrlNative;
 
+    // 단어 토큰 목록
+    private List<TokenResponse> tokens;
+
     public static SlideResponse from(Slide slide) {
         return SlideResponse.builder()
                 .slideId(slide.getSlideId())
@@ -29,6 +35,9 @@ public class SlideResponse {
                 .textNative(slide.getTextNative())
                 .audioUrlKr(slide.getAudioUrlKr())
                 .audioUrlNative(slide.getAudioUrlNative())
+                .tokens(slide.getTokens().stream()
+                        .map(TokenResponse::from)
+                        .collect(Collectors.toList()))
                 .build();
     }
 }

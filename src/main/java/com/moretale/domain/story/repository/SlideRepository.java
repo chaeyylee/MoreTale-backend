@@ -11,14 +11,20 @@ import java.util.List;
 @Repository
 public interface SlideRepository extends JpaRepository<Slide, Long> {
 
-    // 특정 동화의 슬라이드 목록 조회 (순서대로)
     List<Slide> findByStoryStoryIdOrderByOrderAsc(Long storyId);
 
-    // 특정 동화의 슬라이드 목록 조회 (JPQL 명시 버전)
     @Query("SELECT s FROM Slide s WHERE s.story.storyId = :storyId ORDER BY s.order ASC")
     List<Slide> findByStoryIdOrderByOrder(@Param("storyId") Long storyId);
 
-    // TTS가 생성되지 않은 슬라이드 조회 (KR 또는 Native 중 하나라도 없는 경우)
+    // 토큰까지 함께 fetch (상세 조회용)
+    @Query("""
+        SELECT DISTINCT s FROM Slide s
+        LEFT JOIN FETCH s.tokens t
+        WHERE s.story.storyId = :storyId
+        ORDER BY s.order ASC
+    """)
+    List<Slide> findByStoryIdWithTokens(@Param("storyId") Long storyId);
+
     @Query("""
         SELECT s FROM Slide s
         WHERE s.story.storyId = :storyId
