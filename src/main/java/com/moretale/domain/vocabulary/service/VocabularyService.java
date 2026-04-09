@@ -10,6 +10,7 @@ import com.moretale.domain.user.entity.User;
 import com.moretale.domain.user.repository.UserRepository;
 import com.moretale.domain.vocabulary.dto.request.VocabularyCreateRequest;
 import com.moretale.domain.vocabulary.dto.request.VocabularyPatchRequest;
+import com.moretale.domain.vocabulary.dto.request.VocabularySearchCondition;
 import com.moretale.domain.vocabulary.dto.response.VocabularyResponse;
 import com.moretale.domain.vocabulary.dto.response.VocabularyStoryResponse;
 import com.moretale.domain.vocabulary.entity.VocabularyEntry;
@@ -18,9 +19,12 @@ import com.moretale.domain.vocabulary.repository.VocabularyEntryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -36,8 +40,7 @@ public class VocabularyService {
     private final SlideRepository slideRepository;
     private final StoryTokenRepository storyTokenRepository;
 
-    // ── 단어 저장 ─────────────────────────────────────────────────────────────
-
+    // 단어 저장
     @Transactional
     public VocabularyResponse save(Long userId, VocabularyCreateRequest request) {
 
@@ -87,24 +90,65 @@ public class VocabularyService {
         return VocabularyResponse.from(saved);
     }
 
-    // ── 전체 단어장 조회 ──────────────────────────────────────────────────────
-
+    // 전체 단어장 조회
     public Page<VocabularyResponse> getAll(Long userId, Pageable pageable) {
+        Pageable safePageable = buildSafeVocabularyPageable(pageable);
         return vocabularyEntryRepository
-                .findByUser_UserId(userId, pageable)
+                .findByUser_UserId(userId, safePageable)
                 .map(VocabularyResponse::from);
     }
 
-    // ── 특정 동화 기준 단어장 조회 ────────────────────────────────────────────
-
+    // 특정 동화 기준 단어장 조회
     public Page<VocabularyResponse> getByStory(Long userId, Long storyId, Pageable pageable) {
+        Pageable safePageable = buildSafeVocabularyPageable(pageable);
         return vocabularyEntryRepository
-                .findByUser_UserIdAndStory_StoryId(userId, storyId, pageable)
+                .findByUser_UserIdAndStory_StoryId(userId, storyId, safePageable)
                 .map(VocabularyResponse::from);
     }
 
-    // ── 단어가 저장된 동화 목록 조회 ──────────────────────────────────────────
+    // 통합 필터 조회
+    /**
+     * 단어장 통합 필터 조회
+     * 프론트 정렬 파라미터 매핑:
+     *   최신순   → sort=createdAt,desc
+     *   오래된순 → sort=createdAt,asc
+     *   가나다순 → sort=word,asc
+     *
+     * @param userId    사용자 ID
+     * @param condition 필터 조건 (storyId, favorite, keyword)
+     * @param pageable  페이징 + 정렬
+     */
+    public Page<VocabularyResponse> getWithFilters(
+            Long userId,
+            VocabularySearchCondition condition,
+            Pageable pageable
+    ) {
+        Pageable safePageable = buildSafeVocabularyPageable(pageable);
 
+        // keyword 정규화: blank이면 null로 처리
+        String keyword = StringUtils.hasText(condition.getKeyword())
+                ? condition.getKeyword().trim()
+                : null;
+
+        log.info("단어장 필터 조회 - userId={}, storyId={}, favorite={}, keyword={}, sort={}",
+                userId,
+                condition.getStoryId(),
+                condition.getFavorite(),
+                keyword,
+                safePageable.getSort());
+
+        return vocabularyEntryRepository
+                .findWithFilters(
+                        userId,
+                        condition.getStoryId(),
+                        condition.getFavorite(),
+                        keyword,
+                        safePageable
+                )
+                .map(VocabularyResponse::from);
+    }
+
+    // 단어가 저장된 동화 목록 조회
     public List<VocabularyStoryResponse> getStoriesWithVocabulary(Long userId) {
         List<Story> stories = vocabularyEntryRepository.findDistinctStoriesByUserId(userId);
 
@@ -117,8 +161,7 @@ public class VocabularyService {
                 .toList();
     }
 
-    // ── 단어장 항목 수정 (즐겨찾기 / 학습상태 / 메모) ─────────────────────────
-
+    // 단어장 항목 수정 (기존 유지)
     @Transactional
     public VocabularyResponse patch(Long userId, Long vocabularyId, VocabularyPatchRequest request) {
         VocabularyEntry entry = findOwnedEntry(userId, vocabularyId);
@@ -137,8 +180,7 @@ public class VocabularyService {
         return VocabularyResponse.from(entry);
     }
 
-    // ── 단어 삭제 ─────────────────────────────────────────────────────────────
-
+    // 단어 삭제
     @Transactional
     public void delete(Long userId, Long vocabularyId) {
         VocabularyEntry entry = findOwnedEntry(userId, vocabularyId);
@@ -146,7 +188,7 @@ public class VocabularyService {
         log.info("단어장 삭제 완료 - userId={}, vocabularyId={}", userId, vocabularyId);
     }
 
-    // ── 내부 공통 메서드 ──────────────────────────────────────────────────────
+    // 내부 공통 메서드
 
     // 소유권 확인 후 엔티티 반환 (없으면 404, 권한 없으면 403)
     private VocabularyEntry findOwnedEntry(Long userId, Long vocabularyId) {
@@ -158,5 +200,41 @@ public class VocabularyService {
         return vocabularyEntryRepository
                 .findByVocabularyIdAndUser_UserId(vocabularyId, userId)
                 .orElseThrow(VocabularyAccessDeniedException::new);
+    }
+
+    /**
+     * 단어장 정렬 필드 화이트리스트 검증
+     * - 허용 필드: createdAt, word
+     * - 허용되지 않은 필드는 기본값(createdAt DESC)으로 대체
+     */
+    private Pageable buildSafeVocabularyPageable(Pageable pageable) {
+        Sort sort = pageable.getSort();
+
+        if (sort.isUnsorted()) {
+            return PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    Sort.by(Sort.Direction.DESC, "createdAt")
+            );
+        }
+
+        Sort safeSort = Sort.by(
+                sort.stream()
+                        .filter(order -> isAllowedVocabSortField(order.getProperty()))
+                        .map(order -> order.isAscending()
+                                ? Sort.Order.asc(order.getProperty())
+                                : Sort.Order.desc(order.getProperty()))
+                        .toList()
+        );
+
+        if (safeSort.isUnsorted()) {
+            safeSort = Sort.by(Sort.Direction.DESC, "createdAt");
+        }
+
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), safeSort);
+    }
+
+    private boolean isAllowedVocabSortField(String field) {
+        return "createdAt".equals(field) || "word".equals(field);
     }
 }

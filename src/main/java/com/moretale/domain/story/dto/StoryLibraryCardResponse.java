@@ -8,37 +8,34 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-/**
- * 기존 목록 조회용 DTO (내부/공개 동화 목록)
- * - primaryLanguage, secondaryLanguage 필드 추가
- * - thumbnail 추가 (첫 슬라이드 이미지)
- */
+// 도서관 화면 카드 응답 DTO
+// UI 정렬: 최신순(createdAt DESC), 오래된순(createdAt ASC), 가나다순(title ASC)
+// thumbnail: 첫 번째 슬라이드 imageUrl 사용
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class StoryListResponse {
+public class StoryLibraryCardResponse {
 
     private Long storyId;
     private String title;
-    private String thumbnail;           // 첫 번째 슬라이드 imageUrl (신규)
-    private String childName;
-    private String primaryLanguage;     // 신규
-    private String secondaryLanguage;   // 신규
+    private String thumbnail;           // 첫 번째 슬라이드 imageUrl
+    private String primaryLanguage;
+    private String secondaryLanguage;
     private Boolean isPublic;
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt;    // Story.createdAt 기준 (UI 날짜 표시용)
     private Integer slideCount;
 
-    public static StoryListResponse from(Story story) {
+    public static StoryLibraryCardResponse from(Story story) {
+        // 첫 번째 슬라이드 imageUrl을 thumbnail로 사용
         String thumbnail = story.getSlides().isEmpty()
                 ? null
                 : story.getSlides().get(0).getImageUrl();
 
-        return StoryListResponse.builder()
+        return StoryLibraryCardResponse.builder()
                 .storyId(story.getStoryId())
                 .title(story.getTitle())
                 .thumbnail(thumbnail)
-                .childName(story.getChildName())
                 .primaryLanguage(story.getPrimaryLanguage())
                 .secondaryLanguage(story.getSecondaryLanguage())
                 .isPublic(story.getIsPublic())

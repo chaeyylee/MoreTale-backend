@@ -41,4 +41,76 @@ public interface VocabularyEntryRepository extends JpaRepository<VocabularyEntry
 
     // Story 삭제 시 연관된 단어장 전체 삭제용
     void deleteAllByStory(Story story);
+
+    /**
+     * 통합 필터 조회 (즐겨찾기 + 키워드 + 동화 필터 조합)
+     * 프론트 정렬 UI 매핑:
+     *   최신순    → sort=createdAt,desc
+     *   오래된순  → sort=createdAt,asc
+     *   가나다순  → sort=word,asc
+     *
+     * @param userId    사용자 ID (필수)
+     * @param storyId   동화 ID 필터 (null이면 전체)
+     * @param favorite  즐겨찾기 필터 (null이면 전체, true이면 즐겨찾기만)
+     * @param keyword   단어/번역어 검색 (null 또는 blank이면 전체)
+     * @param pageable  페이징 + 정렬
+     */
+    @Query("""
+        SELECT v FROM VocabularyEntry v
+        WHERE v.user.userId = :userId
+          AND (:storyId IS NULL OR v.story.storyId = :storyId)
+          AND (:favorite IS NULL OR v.isFavorite = :favorite)
+          AND (
+                :keyword IS NULL
+                OR v.word LIKE CONCAT('%', :keyword, '%')
+                OR v.translation LIKE CONCAT('%', :keyword, '%')
+              )
+    """)
+    Page<VocabularyEntry> findWithFilters(
+            @Param("userId") Long userId,
+            @Param("storyId") Long storyId,
+            @Param("favorite") Boolean favorite,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    // 즐겨찾기 단어 전체 조회 (페이징)
+    Page<VocabularyEntry> findByUser_UserIdAndIsFavoriteTrue(Long userId, Pageable pageable);
+
+    // 특정 동화 + 즐겨찾기 조회 (페이징)
+    Page<VocabularyEntry> findByUser_UserIdAndStory_StoryIdAndIsFavoriteTrue(
+            Long userId, Long storyId, Pageable pageable
+    );
+
+    // 단어 검색 (word 또는 translation 포함, 페이징)
+    @Query("""
+        SELECT v FROM VocabularyEntry v
+        WHERE v.user.userId = :userId
+          AND (
+                v.word LIKE CONCAT('%', :keyword, '%')
+                OR v.translation LIKE CONCAT('%', :keyword, '%')
+              )
+    """)
+    Page<VocabularyEntry> searchByKeyword(
+            @Param("userId") Long userId,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    // 특정 동화에서 단어 검색 (페이징)
+    @Query("""
+        SELECT v FROM VocabularyEntry v
+        WHERE v.user.userId = :userId
+          AND v.story.storyId = :storyId
+          AND (
+                v.word LIKE CONCAT('%', :keyword, '%')
+                OR v.translation LIKE CONCAT('%', :keyword, '%')
+              )
+    """)
+    Page<VocabularyEntry> searchByKeywordAndStory(
+            @Param("userId") Long userId,
+            @Param("storyId") Long storyId,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
 }
