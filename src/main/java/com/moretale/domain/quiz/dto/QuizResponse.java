@@ -6,8 +6,14 @@ import lombok.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// GET /api/quiz?storyId={storyId} 응답 DTO
-// 정답은 포함하지 않음 (채점은 서버에서만 처리)
+/**
+ * GET /api/quiz?storyId={storyId} 응답 DTO
+ *
+ * - QuestionDto에 correctAnswer 필드 추가
+ * - 프론트에서 선택 즉시 정답/오답 판별 가능하도록 제공
+ * - 보안 trade-off: 아동 교육용 앱 특성상 클라이언트 노출 허용
+ *   서버 무결성은 submit 시점의 서버 재채점으로 보장 (기존 유지)
+ */
 @Getter
 @Builder
 @NoArgsConstructor
@@ -46,6 +52,19 @@ public class QuizResponse {
         private String questionText;
         private List<OptionDto> options; // T/F는 빈 리스트
 
+        /**
+         * 선택 즉시 정답/오답 피드백을 위해 correctAnswer 포함
+         * - 선다형: "1" ~ "4" (보기 번호)
+         * - T/F형:  "TRUE" | "FALSE"
+         */
+        private String correctAnswer;
+
+        /**
+         * 오답 선택 시 정답 강조 표시를 위해 explanation 포함
+         * submit 이후 결과 화면에서도 동일하게 활용 가능
+         */
+        private String explanation;
+
         public static QuestionDto from(QuizQuestion question) {
             return QuestionDto.builder()
                     .questionId(question.getQuestionId())
@@ -56,6 +75,8 @@ public class QuizResponse {
                     .options(question.getOptions().stream()
                             .map(OptionDto::from)
                             .collect(Collectors.toList()))
+                    .correctAnswer(question.getCorrectAnswer())
+                    .explanation(question.getExplanation())
                     .build();
         }
     }

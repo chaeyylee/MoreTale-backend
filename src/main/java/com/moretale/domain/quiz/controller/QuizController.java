@@ -1,9 +1,7 @@
 package com.moretale.domain.quiz.controller;
 
-import com.moretale.domain.honeyjar.service.HoneyJarService;
 import com.moretale.domain.quiz.dto.*;
 import com.moretale.domain.quiz.service.QuizService;
-import com.moretale.domain.user.repository.UserRepository;
 import com.moretale.global.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,7 +27,9 @@ public class QuizController {
      *
      * - 동화 1권당 퀴즈 1세트 자동 생성
      * - 이미 생성된 경우 기존 퀴즈 반환
-     * - 정답은 응답에 포함되지 않음 (서버에서만 처리)
+     * - 응답에 correctAnswer, explanation 포함
+     * - 프론트에서 선택 즉시 정답/오답 피드백 처리 가능
+     * - 보상 로직은 기존과 동일하게 submit 시점에서만 실행
      */
     @Operation(
             summary = "퀴즈 조회",
@@ -37,8 +37,16 @@ public class QuizController {
                     동화에 연결된 퀴즈를 조회합니다.
                     퀴즈가 없으면 AI가 자동으로 생성합니다.
                     
-                    - 정답은 응답에 포함되지 않습니다 (채점은 서버에서 처리)
-                    - 난이도는 사용자 프로필(연령/언어수준) 기반으로 자동 결정
+                    - 각 문제에 `correctAnswer`와 `explanation`이 포함됩니다.
+                    - 프론트에서 선택지 클릭 즉시 정답(초록) / 오답(빨강 + 정답 강조) 표시 가능
+                    - 최종 채점 및 꿀단지 보상은 submit 시점에서만 처리됩니다.
+                    
+                    **correctAnswer 형식**
+                    - 선다형(MULTIPLE_CHOICE): `"1"` ~ `"4"` (선택한 보기 번호와 비교)
+                    - T/F형(TRUE_FALSE): `"TRUE"` 또는 `"FALSE"`
+                    
+                    **난이도 결정**
+                    - 사용자 프로필(연령/언어수준) 기반으로 자동 결정
                     - 문제 언어는 동화의 primaryLanguage 기준
                     """
     )
@@ -70,10 +78,16 @@ public class QuizController {
                     - 선다형: 보기 번호("1"~"4") 제출
                     - T/F형: "TRUE" 또는 "FALSE" 제출
                     - 점수 = (정답 수 / 총 문제 수) × 100
+                    - 채점은 서버에서 독립적으로 수행 (클라이언트 correctAnswer와 무관)
                     
                     **꿀단지 보상**
                     - 100점 달성 시 꿀단지 +1 (동화 1권당 최초 1회)
                     - 꿀단지 20개 달성 시 동화 1권 무료 생성 자동 처리
+                    
+                    **결과 응답 (submit 후 종합 결과 화면)**
+                    - 전체 점수, 정답 수, 100점 여부
+                    - 문항별 제출 답안 / 정답 / 정오 여부 / 해설
+                    - 꿀단지 보상 정보
                     """
     )
     @PostMapping("/submit")
