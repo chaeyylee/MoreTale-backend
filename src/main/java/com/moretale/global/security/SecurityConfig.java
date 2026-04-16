@@ -67,6 +67,10 @@ public class SecurityConfig {
                         // 꿀단지 API (인증 필요)
                         .requestMatchers("/api/honey-jar/**").authenticated()
 
+                        // 마이페이지 & 회원 탈퇴 (인증 필요)
+                        .requestMatchers(HttpMethod.GET, "/api/users/mypage").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/users/delete").authenticated()
+
                         // ADMIN 권한 필요
                         .requestMatchers(HttpMethod.PATCH, "/api/dictionary/*/verify").hasRole("ADMIN")    // 방언 검증
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")                                 // 관리자 경로

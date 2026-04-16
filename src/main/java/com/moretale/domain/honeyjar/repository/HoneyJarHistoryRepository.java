@@ -12,4 +12,7 @@ public interface HoneyJarHistoryRepository extends JpaRepository<HoneyJarHistory
 
     // 사용자 꿀단지 이력 조회 (최신순)
     List<HoneyJarHistory> findByUserOrderByCreatedAtDesc(User user);
+
+    // 회원 탈퇴 시 이력 삭제
+    void deleteAllByUser(User user);
 }

@@ -21,4 +21,7 @@ public interface HoneyJarRepository extends JpaRepository<HoneyJar, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT h FROM HoneyJar h WHERE h.user = :user")
     Optional<HoneyJar> findByUserWithLock(@Param("user") User user);
+
+    // 회원 탈퇴 시 꿀단지 삭제
+    void deleteByUser(User user);
 }
