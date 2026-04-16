@@ -60,6 +60,8 @@ public class QuizService {
         Story story = getStoryWithAccess(user, storyId);
 
         // 기존 퀴즈가 있으면 바로 반환
+        // QuizResponse.from() 내부에서 correctAnswer, explanation 자동 포함
+        // 서비스 레이어 변경 없음 - DTO 레이어에서만 처리
         Quiz existingQuiz = quizRepository.findByStoryWithQuestions(story).orElse(null);
         if (existingQuiz != null) {
             log.info("기존 퀴즈 반환 - storyId={}, quizId={}", storyId, existingQuiz.getQuizId());
