@@ -15,6 +15,9 @@ import java.util.Optional;
 @Repository
 public interface StoryRepository extends JpaRepository<Story, Long> {
 
+    // 특정 사용자의 동화 목록 조회 (최신순)
+    List<Story> findAllByUserOrderByCreatedAtDesc(User user);
+
     // 특정 사용자가 만든 동화 목록 조회 (최신순 고정 - 내부 사용)
     List<Story> findByUserOrderByCreatedAtDesc(User user);
 
@@ -32,8 +35,20 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
     """)
     Optional<Story> findByIdWithSlides(@Param("storyId") Long storyId);
 
-    // 사용자별 동화 개수
+    // 마이페이지용: 최근 생성 동화 N건 조회 (슬라이드 함께 패치)
+    @Query("""
+        SELECT DISTINCT s FROM Story s
+        LEFT JOIN FETCH s.slides sl
+        WHERE s.user = :user
+        ORDER BY s.createdAt DESC
+    """)
+    List<Story> findRecentStoriesWithSlides(@Param("user") User user, Pageable pageable);
+
+    // 특정 사용자의 전체 동화 수 조회 / 사용자별 동화 개수
     long countByUser(User user);
+
+    // 특정 사용자의 모든 동화 삭제 (회원 탈퇴용)
+    void deleteAllByUser(User user);
 
     /**
      * 도서관 목록 조회 - Pageable 정렬 파라미터 지원
