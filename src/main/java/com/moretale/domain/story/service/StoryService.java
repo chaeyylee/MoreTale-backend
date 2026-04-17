@@ -1,7 +1,16 @@
 package com.moretale.domain.story.service;
 
+import com.moretale.domain.profile.entity.Language;
 import com.moretale.domain.profile.entity.StoryPreference;
-import com.moretale.domain.story.dto.*;
+import com.moretale.domain.profile.entity.UserProfile;
+import com.moretale.domain.profile.repository.UserProfileRepository;
+import com.moretale.domain.story.dto.StoryGenerateRequest;
+import com.moretale.domain.story.dto.StoryGenerateResponse;
+import com.moretale.domain.story.dto.StoryInitResponse;
+import com.moretale.domain.story.dto.StoryListResponse;
+import com.moretale.domain.story.dto.StoryResponse;
+import com.moretale.domain.story.dto.StorySaveRequest;
+import com.moretale.domain.story.dto.StoryShareRequest;
 import com.moretale.domain.story.entity.Slide;
 import com.moretale.domain.story.entity.Story;
 import com.moretale.domain.story.entity.StoryToken;
@@ -11,8 +20,6 @@ import com.moretale.domain.story.repository.StoryRepository;
 import com.moretale.domain.story.repository.StoryTokenRepository;
 import com.moretale.domain.story.util.PromptBuilder;
 import com.moretale.domain.user.entity.User;
-import com.moretale.domain.profile.entity.UserProfile;
-import com.moretale.domain.profile.repository.UserProfileRepository;
 import com.moretale.domain.user.repository.UserRepository;
 import com.moretale.global.exception.BusinessException;
 import com.moretale.global.exception.ErrorCode;
@@ -36,8 +43,6 @@ public class StoryService {
     private final UserProfileRepository userProfileRepository;
     private final AIStoryService aiStoryService;
     private final TTSService ttsService;
-
-    // 추가
     private final StoryTokenService storyTokenService;
     private final StoryTokenRepository storyTokenRepository;
 
@@ -50,17 +55,11 @@ public class StoryService {
         // 이야기 선호도에 맞는 전래동화 자동 매핑
         TraditionalTale recommendedTale;
 
-        if (profile.getStoryPreference() == StoryPreference.CUSTOM &&
-                profile.getCustomStoryPreference() != null) {
-            // CUSTOM인 경우 customStoryPreference 텍스트 분석
-            recommendedTale = TraditionalTale.findByCustomText(
-                    profile.getCustomStoryPreference()
-            );
+        if (profile.getStoryPreference() == StoryPreference.CUSTOM
+                && profile.getCustomStoryPreference() != null) {
+            recommendedTale = TraditionalTale.findByCustomText(profile.getCustomStoryPreference());
         } else {
-            // 일반적인 경우
-            recommendedTale = TraditionalTale.findByPreference(
-                    profile.getStoryPreference()
-            );
+            recommendedTale = TraditionalTale.findByPreference(profile.getStoryPreference());
         }
 
         log.info("동화 초기값 조회 - userId={}, profileId={}, 추천 전래동화={}",
@@ -79,9 +78,8 @@ public class StoryService {
         // 추천 전래동화 선택
         TraditionalTale tale;
 
-        if (profile.getStoryPreference() == StoryPreference.CUSTOM &&
-                profile.getCustomStoryPreference() != null) {
-            // CUSTOM인 경우 customStoryPreference 텍스트 분석
+        if (profile.getStoryPreference() == StoryPreference.CUSTOM
+                && profile.getCustomStoryPreference() != null) {
             tale = TraditionalTale.findByCustomText(profile.getCustomStoryPreference());
 
             // CUSTOM이면 전래동화 대신 사용자 입력 텍스트 사용
@@ -105,8 +103,8 @@ public class StoryService {
                 .prompt(basePrompt)
                 .profileId(profileId)
                 .childName(profile.getChildName())
-                .primaryLanguage(profile.getFirstLanguage())
-                .secondaryLanguage(profile.getSecondLanguage())
+                .primaryLanguage(resolvePrimaryLanguage(profile))
+                .secondaryLanguage(resolveSecondaryLanguage(profile))
                 .ageGroup(profile.getAgeGroup())
                 .childAge(profile.getChildAge())
                 .firstLanguageProficiency(profile.getFirstLanguageProficiency())
@@ -140,11 +138,11 @@ public class StoryService {
 
         String primaryLang = request.getPrimaryLanguage() != null
                 ? request.getPrimaryLanguage()
-                : profile.getFirstLanguage();
+                : resolvePrimaryLanguage(profile);
 
         String secondaryLang = request.getSecondaryLanguage() != null
                 ? request.getSecondaryLanguage()
-                : profile.getSecondLanguage();
+                : resolveSecondaryLanguage(profile);
 
         // 온보딩 데이터가 요청에 없으면 프로필에서 가져옴
         if (request.getAgeGroup() == null) {
@@ -171,7 +169,7 @@ public class StoryService {
                 childName,
                 primaryLang,
                 secondaryLang,
-                request // 온보딩 제약 조건 전달
+                request
         );
 
         // TTS 생성
@@ -182,6 +180,7 @@ public class StoryService {
                             ttsService.generateTTS(slide.getTextKr(), primaryLang + "-KR")
                     );
                 }
+
                 if (slide.getTextNative() != null) {
                     slide.setAudioUrlNative(
                             ttsService.generateTTS(
@@ -191,11 +190,8 @@ public class StoryService {
                     );
                 }
             } catch (Exception e) {
-                log.error(
-                        "TTS 생성 중 오류 발생 (건너뜀) - slideOrder={}",
-                        slide.getOrder(),
-                        e
-                );
+                log.error("TTS 생성 중 오류 발생 (건너뜀) - slideOrder={}",
+                        slide.getOrder(), e);
             }
         });
 
@@ -225,8 +221,8 @@ public class StoryService {
                 .prompt(request.getPrompt())
                 .user(user)
                 .childName(profile.getChildName())
-                .primaryLanguage(profile.getPrimaryLanguage())
-                .secondaryLanguage(profile.getSecondaryLanguage())
+                .primaryLanguage(resolvePrimaryLanguage(profile))
+                .secondaryLanguage(resolveSecondaryLanguage(profile))
                 .isPublic(false)
                 .build();
 
@@ -249,11 +245,8 @@ public class StoryService {
         Story savedStory = storyRepository.save(story);
         slideRepository.saveAll(savedStory.getSlides());
 
-        // 토큰 생성 및 저장 (동화 저장 시점에 미리 생성)
-        String sourceLanguage = profile.getPrimaryLanguage() != null
-                ? profile.getPrimaryLanguage() : "ko";
-        String targetLanguage = profile.getSecondaryLanguage() != null
-                ? profile.getSecondaryLanguage() : "en";
+        String sourceLanguage = resolvePrimaryLanguage(profile);
+        String targetLanguage = resolveSecondaryLanguage(profile);
 
         savedStory.getSlides().forEach(slide -> {
             try {
@@ -267,7 +260,9 @@ public class StoryService {
             }
         });
 
-        log.info("동화 저장 완료 - storyId={}, userId={}", savedStory.getStoryId(), user.getUserId());
+        log.info("동화 저장 완료 - storyId={}, userId={}",
+                savedStory.getStoryId(), user.getUserId());
+
         return StoryResponse.from(savedStory);
     }
 
@@ -333,8 +328,49 @@ public class StoryService {
                     .findByProfileIdAndUser_UserId(profileId, user.getUserId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_NOT_FOUND));
         }
+
         return userProfileRepository
                 .findFirstByUserOrderByCreatedAtDesc(user)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_NOT_FOUND));
+    }
+
+    /**
+     * Story/TTS/토큰 생성 등 기존 문자열 기반 로직에서 사용할 첫 번째 언어 문자열 반환
+     * - 일반 언어: ISO 코드 반환 (ko, en, ja ...)
+     * - OTHER: 사용자가 직접 입력한 문자열 반환
+     * - null: 기본값 ko
+     */
+    private String resolvePrimaryLanguage(UserProfile profile) {
+        if (profile.getFirstLanguage() == null) {
+            return "ko";
+        }
+
+        if (profile.getFirstLanguage() == Language.OTHER) {
+            return profile.getCustomFirstLanguage() != null && !profile.getCustomFirstLanguage().isBlank()
+                    ? profile.getCustomFirstLanguage()
+                    : "other";
+        }
+
+        return profile.getFirstLanguage().getIsoCode();
+    }
+
+    /**
+     * Story/TTS/토큰 생성 등 기존 문자열 기반 로직에서 사용할 두 번째 언어 문자열 반환
+     * - 일반 언어: ISO 코드 반환 (ko, en, ja ...)
+     * - OTHER: 사용자가 직접 입력한 문자열 반환
+     * - null: 기본값 en
+     */
+    private String resolveSecondaryLanguage(UserProfile profile) {
+        if (profile.getSecondLanguage() == null) {
+            return "en";
+        }
+
+        if (profile.getSecondLanguage() == Language.OTHER) {
+            return profile.getCustomSecondLanguage() != null && !profile.getCustomSecondLanguage().isBlank()
+                    ? profile.getCustomSecondLanguage()
+                    : "other";
+        }
+
+        return profile.getSecondLanguage().getIsoCode();
     }
 }
