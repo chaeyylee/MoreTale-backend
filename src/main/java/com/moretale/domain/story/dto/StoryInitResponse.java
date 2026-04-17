@@ -1,6 +1,7 @@
 package com.moretale.domain.story.dto;
 
 import com.moretale.domain.profile.entity.*;
+import com.moretale.domain.profile.entity.UserProfile;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -47,8 +48,8 @@ public class StoryInitResponse {
         return StoryInitResponse.builder()
                 .profileId(profile.getProfileId())
                 .childName(profile.getChildName())
-                .firstLanguage(profile.getFirstLanguage())
-                .secondLanguage(profile.getSecondLanguage())
+                .firstLanguage(profile.getFirstLanguageDisplay())
+                .secondLanguage(profile.getSecondLanguageDisplay())
                 .ageGroup(profile.getAgeGroup())
                 .childAge(profile.getChildAge())
                 .firstLanguageProficiency(profile.getFirstLanguageProficiency())

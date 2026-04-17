@@ -1,10 +1,7 @@
 package com.moretale.domain.profile.dto;
 
-import com.moretale.domain.profile.entity.AgeGroup;
-import com.moretale.domain.profile.entity.FamilyStructure;
-import com.moretale.domain.profile.entity.LanguageProficiency;
-import com.moretale.domain.profile.entity.StoryPreference;
-import com.moretale.domain.profile.entity.UserProfile;
+import com.moretale.domain.profile.entity.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -14,6 +11,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Schema(description = "온보딩 프로필 생성 응답 DTO")
 public class OnboardingProfileResponse {
 
     private Long profileId;
@@ -21,15 +19,30 @@ public class OnboardingProfileResponse {
     private String nickname;
     private String childName;
     private AgeGroup ageGroup;
-    private Integer childAge; // 실제 나이 (대표값)
+    private Integer childAge;
 
-    // 언어 설정
-    private String firstLanguage;
+    // 언어 (Enum + Custom + Display)
+    @Schema(description = "첫 번째 언어 Enum", example = "KO")
+    private Language firstLanguage;
+
+    @Schema(description = "첫 번째 언어 직접 입력값 (OTHER 시)", example = "태국어")
+    private String customFirstLanguage;
+
+    @Schema(description = "첫 번째 언어 표시명", example = "한국어")
+    private String firstLanguageDisplay;
+
+    @Schema(description = "두 번째 언어 Enum", example = "VI")
+    private Language secondLanguage;
+
+    @Schema(description = "두 번째 언어 직접 입력값 (OTHER 시)")
+    private String customSecondLanguage;
+
+    @Schema(description = "두 번째 언어 표시명", example = "베트남어")
+    private String secondLanguageDisplay;
+
+    // 숙련도
     private LanguageProficiency firstLanguageProficiency;
-    private String secondLanguage;
     private LanguageProficiency secondLanguageProficiency;
-
-    // 언어 능력 (듣기/말하기)
     private LanguageProficiency firstLanguageListening;
     private LanguageProficiency firstLanguageSpeaking;
     private LanguageProficiency secondLanguageListening;
@@ -63,18 +76,26 @@ public class OnboardingProfileResponse {
                 .childName(profile.getChildName())
                 .ageGroup(profile.getAgeGroup())
                 .childAge(profile.getChildAge())
+                // 언어 Enum + Custom + Display
                 .firstLanguage(profile.getFirstLanguage())
-                .firstLanguageProficiency(profile.getFirstLanguageProficiency())
+                .customFirstLanguage(profile.getCustomFirstLanguage())
+                .firstLanguageDisplay(profile.getFirstLanguageDisplay())
                 .secondLanguage(profile.getSecondLanguage())
+                .customSecondLanguage(profile.getCustomSecondLanguage())
+                .secondLanguageDisplay(profile.getSecondLanguageDisplay())
+                // 숙련도
+                .firstLanguageProficiency(profile.getFirstLanguageProficiency())
                 .secondLanguageProficiency(profile.getSecondLanguageProficiency())
                 .firstLanguageListening(profile.getFirstLanguageListening())
                 .firstLanguageSpeaking(profile.getFirstLanguageSpeaking())
                 .secondLanguageListening(profile.getSecondLanguageListening())
                 .secondLanguageSpeaking(profile.getSecondLanguageSpeaking())
+                // 가족/이야기
                 .familyStructure(profile.getFamilyStructure())
                 .customFamilyStructure(profile.getCustomFamilyStructure())
                 .storyPreference(profile.getStoryPreference())
                 .customStoryPreference(profile.getCustomStoryPreference())
+                // 부가
                 .childNationality(profile.getChildNationality())
                 .parentCountry(profile.getParentCountry())
                 .createdAt(profile.getCreatedAt())

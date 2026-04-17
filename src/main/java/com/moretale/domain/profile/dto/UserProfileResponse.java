@@ -2,10 +2,16 @@ package com.moretale.domain.profile.dto;
 
 import com.moretale.domain.profile.entity.AgeGroup;
 import com.moretale.domain.profile.entity.FamilyStructure;
+import com.moretale.domain.profile.entity.Language;
 import com.moretale.domain.profile.entity.LanguageProficiency;
 import com.moretale.domain.profile.entity.StoryPreference;
 import com.moretale.domain.profile.entity.UserProfile;
-import lombok.*;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
@@ -14,6 +20,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Schema(description = "사용자 프로필 응답 DTO")
 public class UserProfileResponse {
 
     private Long profileId;
@@ -21,17 +28,20 @@ public class UserProfileResponse {
     private String nickname;
     private String childName;
     private Integer childAge;
-
-    // 온보딩 상세 필드 추가
     private AgeGroup ageGroup;
 
-    // 언어 설정
-    private String firstLanguage;
-    private LanguageProficiency firstLanguageProficiency;
-    private String secondLanguage;
-    private LanguageProficiency secondLanguageProficiency;
+    // 언어 (Enum + Custom + Display)
+    private Language firstLanguage;
+    private String customFirstLanguage;
+    private String firstLanguageDisplay;
 
-    // 언어 능력 (듣기/말하기)
+    private Language secondLanguage;
+    private String customSecondLanguage;
+    private String secondLanguageDisplay;
+
+    // 숙련도
+    private LanguageProficiency firstLanguageProficiency;
+    private LanguageProficiency secondLanguageProficiency;
     private LanguageProficiency firstLanguageListening;
     private LanguageProficiency firstLanguageSpeaking;
     private LanguageProficiency secondLanguageListening;
@@ -45,15 +55,9 @@ public class UserProfileResponse {
     private StoryPreference storyPreference;
     private String customStoryPreference;
 
+    // 부가 정보
     private String childNationality;
     private String parentCountry;
-
-    // 하위 호환성 필드 (Deprecated)
-    @Deprecated
-    private String primaryLanguage;
-
-    @Deprecated
-    private String secondaryLanguage;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -70,22 +74,33 @@ public class UserProfileResponse {
                 .childName(profile.getChildName())
                 .childAge(profile.getChildAge())
                 .ageGroup(profile.getAgeGroup())
+
+                // 언어
                 .firstLanguage(profile.getFirstLanguage())
-                .firstLanguageProficiency(profile.getFirstLanguageProficiency())
+                .customFirstLanguage(profile.getCustomFirstLanguage())
+                .firstLanguageDisplay(profile.getFirstLanguageDisplay())
                 .secondLanguage(profile.getSecondLanguage())
+                .customSecondLanguage(profile.getCustomSecondLanguage())
+                .secondLanguageDisplay(profile.getSecondLanguageDisplay())
+
+                // 숙련도
+                .firstLanguageProficiency(profile.getFirstLanguageProficiency())
                 .secondLanguageProficiency(profile.getSecondLanguageProficiency())
                 .firstLanguageListening(profile.getFirstLanguageListening())
                 .firstLanguageSpeaking(profile.getFirstLanguageSpeaking())
                 .secondLanguageListening(profile.getSecondLanguageListening())
                 .secondLanguageSpeaking(profile.getSecondLanguageSpeaking())
+
+                // 가족/이야기
                 .familyStructure(profile.getFamilyStructure())
                 .customFamilyStructure(profile.getCustomFamilyStructure())
                 .storyPreference(profile.getStoryPreference())
                 .customStoryPreference(profile.getCustomStoryPreference())
+
+                // 부가 정보
                 .childNationality(profile.getChildNationality())
                 .parentCountry(profile.getParentCountry())
-                .primaryLanguage(profile.getPrimaryLanguage())
-                .secondaryLanguage(profile.getSecondaryLanguage())
+
                 .createdAt(profile.getCreatedAt())
                 .updatedAt(profile.getUpdatedAt())
                 .build();
