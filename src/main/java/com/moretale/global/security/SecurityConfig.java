@@ -37,7 +37,13 @@ public class SecurityConfig {
                                 "/", "/login",
                                 "/index.html", "/login.html",
                                 "/css/**", "/js/**", "/images/**",
-                                "/oauth2/**", "/login/oauth2/**"
+                                "/oauth2/**", "/login/oauth2/**",
+
+                                // Swagger / OpenAPI
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**"
                         ).permitAll()
 
                         // 공개 API
