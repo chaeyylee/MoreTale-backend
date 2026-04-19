@@ -35,12 +35,17 @@ public class ApiResponse<T> {
         return new ApiResponse<>(true, data, message, null);
     }
 
-    // 에러 응답 - 에러 코드와 에러 메시지 반환
+    // 에러 응답 - 메시지만 반환 (기존 response.ApiResponse와의 호환용)
+    public static <T> ApiResponse<T> error(String message) {
+        return new ApiResponse<>(false, null, message, null);
+    }
+
+    // 에러 응답 - 에러 코드 + 메시지
     public static <T> ApiResponse<T> error(String errorCode, String message) {
         return new ApiResponse<>(false, null, message, errorCode);
     }
 
-    // 에러 응답 - 에러 코드, 메시지 및 에러 데이터 반환 (검증 실패 항목 등)
+    // 에러 응답 - 에러 코드 + 메시지 + 데이터
     public static <T> ApiResponse<T> error(String errorCode, String message, T data) {
         return new ApiResponse<>(false, data, message, errorCode);
     }
