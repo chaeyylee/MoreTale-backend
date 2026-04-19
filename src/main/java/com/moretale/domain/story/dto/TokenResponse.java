@@ -3,10 +3,12 @@ package com.moretale.domain.story.dto;
 import com.moretale.domain.story.entity.StoryToken;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -41,10 +43,9 @@ public class TokenResponse {
      */
     public static TokenResponse from(StoryToken token) {
         return TokenResponse.builder()
-                .id(token.getTokenId()) // token.getId() -> token.getTokenId()로 수정 완료
+                .id(token.getTokenId())
                 .text(token.getText())
                 .highlight(token.getHighlight())
-                // highlight=false이면 null을 반환하여 응답 경량화
                 .translation(token.getHighlight() ? token.getTranslation() : null)
                 .definition(token.getHighlight() ? token.getDefinition() : null)
                 .audioUrl(token.getHighlight() ? token.getAudioUrl() : null)
