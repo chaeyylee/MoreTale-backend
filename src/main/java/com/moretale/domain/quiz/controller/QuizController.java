@@ -4,6 +4,7 @@ import com.moretale.domain.quiz.dto.*;
 import com.moretale.domain.quiz.service.QuizService;
 import com.moretale.global.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,7 @@ public class QuizController {
     @GetMapping
     public ApiResponse<QuizResponse> getQuiz(
             @AuthenticationPrincipal UserDetails userDetails,
+            @Parameter(description = "동화 ID")
             @RequestParam(name = "storyId") Long storyId
     ) {
         log.info("퀴즈 조회 요청 - email={}, storyId={}", userDetails.getUsername(), storyId);
