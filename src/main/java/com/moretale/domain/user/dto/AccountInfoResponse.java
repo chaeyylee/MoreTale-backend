@@ -1,33 +1,37 @@
 package com.moretale.domain.user.dto;
 
 import com.moretale.domain.user.entity.User;
-import lombok.*;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-// 계정 정보 응답 DTO (read-only)
-// Google OAuth 기반이므로 이메일 수정 불가
+@Schema(description = "마이페이지 계정 정보 응답 DTO (read-only)")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class AccountInfoResponse {
 
+    @Schema(description = "사용자 ID", example = "1")
     private Long userId;
 
-    // Google 이메일 (read-only)
+    @Schema(description = "Google 이메일 (변경 불가)", example = "user@gmail.com")
     private String email;
 
-    // 닉네임
+    @Schema(description = "닉네임", example = "홍길동")
     private String nickname;
 
-    // OAuth 제공자 (google)
+    @Schema(description = "OAuth 제공자", example = "google")
     private String provider;
 
-    // 지역
+    @Schema(description = "지역 정보", example = "서울")
     private String region;
 
-    // 가입일
+    @Schema(description = "가입일시 (ISO 8601)", example = "2024-01-01T00:00:00Z")
     private LocalDateTime createdAt;
 
     public static AccountInfoResponse fromEntity(User user) {
