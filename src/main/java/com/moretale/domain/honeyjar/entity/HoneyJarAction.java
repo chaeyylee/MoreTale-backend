@@ -1,8 +1,10 @@
 package com.moretale.domain.honeyjar.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+@Schema(description = "꿀단지 변동 유형 (EARN: 획득, USE: 사용)")
 @Getter
 @RequiredArgsConstructor
 public enum HoneyJarAction {
