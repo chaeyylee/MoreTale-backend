@@ -1,8 +1,10 @@
 package com.moretale.domain.quiz.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+@Schema(description = "퀴즈 평가 유형 (VOCABULARY: 단어 이해, STORY: 줄거리 이해)")
 @Getter
 @RequiredArgsConstructor
 public enum EvaluationType {

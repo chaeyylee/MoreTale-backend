@@ -1,29 +1,29 @@
 package com.moretale.domain.user.dto;
 
 import com.moretale.domain.honeyjar.entity.HoneyJar;
-import lombok.*;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-/**
- * 사용 현황 응답 DTO
- * - 꿀단지 보유 개수
- * - 무료 동화 잔여 생성 가능 횟수
- */
+@Schema(description = "마이페이지 사용 현황 응답 DTO")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class UsageStatusResponse {
 
-    //현재 보유 꿀단지 수
+    @Schema(description = "현재 보유 꿀단지 수", example = "7")
     private Integer honeyJarCount;
 
-    // 무료 동화 생성 가능 여부 (20개 이상)
+    @Schema(description = "무료 동화 생성 가능 여부 (20개 이상)", example = "false")
     private Boolean canGenerateFreeStory;
 
-    // 무료 생성까지 남은 꿀단지 수
+    @Schema(description = "무료 생성까지 남은 꿀단지 수", example = "13")
     private Integer remainingHoneyJarForFree;
 
-    // 누적 생성 동화 수
+    @Schema(description = "누적 생성 동화 수", example = "12")
     private Long totalStoriesCreated;
 
     private static final int FREE_GENERATION_THRESHOLD = 20;

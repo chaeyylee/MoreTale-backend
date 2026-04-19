@@ -35,6 +35,9 @@ public class HoneyJarController {
             description = """
                     현재 사용자의 꿀단지 보유 현황을 조회합니다.
                     
+                    **조회 기준**
+                    - 현재 로그인한 사용자 기준으로 조회합니다.
+                    
                     **응답 정보**
                     - `count`: 현재 보유 꿀단지 수
                     - `canGenerateFree`: 동화 무료 생성 가능 여부 (20개 이상)
@@ -60,6 +63,10 @@ public class HoneyJarController {
             summary = "꿀단지 이력 조회",
             description = """
                     현재 사용자의 꿀단지 획득/사용 이력을 최신순으로 조회합니다.
+                    
+                    **조회 기준**
+                    - 현재 로그인한 사용자 기준으로 조회합니다.
+                    - 최근 이력이 먼저 반환됩니다.
                     
                     **응답 정보**
                     - `actionType`: 변동 유형

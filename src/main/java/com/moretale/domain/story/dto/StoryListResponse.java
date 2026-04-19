@@ -1,32 +1,48 @@
 package com.moretale.domain.story.dto;
 
 import com.moretale.domain.story.entity.Story;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-/**
- * 기존 목록 조회용 DTO (내부/공개 동화 목록)
- * - primaryLanguage, secondaryLanguage 필드 추가
- * - thumbnail 추가 (첫 슬라이드 이미지)
- */
-@Data
+@Schema(description = "동화 목록 응답 DTO")
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class StoryListResponse {
 
+    @Schema(description = "동화 ID", example = "1")
     private Long storyId;
+
+    @Schema(description = "동화 제목", example = "흥부와 놀부")
     private String title;
-    private String thumbnail;           // 첫 번째 슬라이드 imageUrl (신규)
+
+    @Schema(description = "썸네일 이미지 URL (첫 번째 슬라이드)", example = "https://storage.example.com/images/slide1.png")
+    private String thumbnail;
+
+    @Schema(description = "주인공 아이 이름", example = "민준")
     private String childName;
-    private String primaryLanguage;     // 신규
-    private String secondaryLanguage;   // 신규
+
+    @Schema(description = "제1언어 코드", example = "KO")
+    private String primaryLanguage;
+
+    @Schema(description = "제2언어 코드", example = "VI")
+    private String secondaryLanguage;
+
+    @Schema(description = "공개 여부", example = "false")
     private Boolean isPublic;
+
+    @Schema(description = "생성일시 (ISO 8601)", example = "2024-01-15T09:30:00Z")
     private LocalDateTime createdAt;
+
+    @Schema(description = "슬라이드 수", example = "5")
     private Integer slideCount;
 
     public static StoryListResponse from(Story story) {

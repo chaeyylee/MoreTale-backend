@@ -1,8 +1,10 @@
 package com.moretale.domain.profile.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+@Schema(description = "이야기 선호도 (WARM_HUG ~ CUSTOM)")
 @Getter
 @RequiredArgsConstructor
 public enum StoryPreference {

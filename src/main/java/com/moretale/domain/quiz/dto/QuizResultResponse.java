@@ -2,35 +2,40 @@ package com.moretale.domain.quiz.dto;
 
 import com.moretale.domain.quiz.entity.QuizAnswerRecord;
 import com.moretale.domain.quiz.entity.QuizResult;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.util.List;
 
-/**
- * POST /api/quiz/submit 응답 DTO
- * - 채점 결과 + 꿀단지 보상 정보 포함
- * - 프론트에서 결과 화면 렌더링에 필요한 모든 정보 제공
- */
+@Schema(description = "퀴즈 제출 결과 응답 DTO")
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class QuizResultResponse {
 
-    // 채점 결과
+    @Schema(description = "결과 ID", example = "1")
     private Long resultId;
-    private Integer score;           // 점수 (0~100)
-    private Integer totalQuestions;
-    private Integer correctCount;
-    private Boolean isPerfect;       // 100점 여부
 
-    // 꿀단지 보상 정보
+    @Schema(description = "획득 점수 (0~100)", example = "85")
+    private Integer score;
+
+    @Schema(description = "총 문제 수", example = "7")
+    private Integer totalQuestions;
+
+    @Schema(description = "정답 수", example = "6")
+    private Integer correctCount;
+
+    @Schema(description = "100점 여부", example = "false")
+    private Boolean isPerfect;
+
+    @Schema(description = "꿀단지 보상 정보")
     private HoneyJarRewardInfo honeyJarReward;
 
-    // 문항별 정오 내역
+    @Schema(description = "문항별 정오 내역")
     private List<AnswerResultDto> answerResults;
 
-    // 프론트에서 사용할 상태 메시지
+    @Schema(description = "결과 메시지", example = "👏 훌륭해요! 거의 다 맞혔어요!")
     private String resultMessage;
 
     public static QuizResultResponse of(
@@ -59,29 +64,55 @@ public class QuizResultResponse {
         return "📚 동화를 다시 읽고 도전해봐요!";
     }
 
+    @Schema(description = "꿀단지 보상 정보 DTO")
     @Getter
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class HoneyJarRewardInfo {
-        private Integer earnedHoneyJars;        // 이번에 획득한 꿀단지 수
-        private Integer currentHoneyJarCount;   // 현재 보유 꿀단지 수
-        private Boolean canGenerateFree;        // 무료 생성 가능 여부 (20개 이상)
-        private Boolean autoUsedForFreeGeneration; // 20개 달성 시 자동 차감 여부
-        private String rewardMessage;           // 보상 관련 메시지
+
+        @Schema(description = "이번에 획득한 꿀단지 수", example = "1")
+        private Integer earnedHoneyJars;
+
+        @Schema(description = "현재 보유 꿀단지 수", example = "8")
+        private Integer currentHoneyJarCount;
+
+        @Schema(description = "무료 생성 가능 여부 (20개 이상)", example = "false")
+        private Boolean canGenerateFree;
+
+        @Schema(description = "20개 달성 시 자동 차감 여부", example = "false")
+        private Boolean autoUsedForFreeGeneration;
+
+        @Schema(description = "보상 관련 메시지", example = "🏆 100점 달성! 꿀단지 1개 획득! 🍯")
+        private String rewardMessage;
     }
 
+    @Schema(description = "문항별 정오 결과 DTO")
     @Getter
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class AnswerResultDto {
+
+        @Schema(description = "문제 ID", example = "101")
         private Long questionId;
+
+        @Schema(description = "문제 순서", example = "1")
         private Integer questionOrder;
+
+        @Schema(description = "문제 텍스트", example = "흥부는 어떤 성격을 가진 인물인가요?")
         private String questionText;
+
+        @Schema(description = "제출한 답안", example = "1")
         private String submittedAnswer;
+
+        @Schema(description = "정답", example = "1")
         private String correctAnswer;
+
+        @Schema(description = "정답 여부", example = "true")
         private Boolean isCorrect;
+
+        @Schema(description = "해설", example = "흥부는 마음씨 착한 인물로 묘사됩니다.")
         private String explanation;
 
         public static AnswerResultDto from(QuizAnswerRecord record) {

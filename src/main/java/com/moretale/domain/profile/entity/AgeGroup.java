@@ -1,8 +1,10 @@
 package com.moretale.domain.profile.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+@Schema(description = "나이 그룹 (AGE_0_2 ~ AGE_10_PLUS)")
 @Getter
 @RequiredArgsConstructor
 public enum AgeGroup {
@@ -15,9 +17,4 @@ public enum AgeGroup {
 
     private final String description;
     private final int representativeAge;
-
-    // 나이 그룹의 대표 나이 반환 (동화 난이도 조정용)
-    public int getRepresentativeAge() {
-        return representativeAge;
-    }
 }

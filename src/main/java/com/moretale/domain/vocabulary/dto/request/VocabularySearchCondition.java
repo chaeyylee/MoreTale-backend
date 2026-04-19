@@ -1,5 +1,6 @@
 package com.moretale.domain.vocabulary.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -13,9 +14,15 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@Schema(description = "단어장 조회 필터 조건 DTO")
 public class VocabularySearchCondition {
 
-    private Long storyId;           // null이면 전체
-    private Boolean favorite;       // null이면 전체, true이면 즐겨찾기만
-    private String keyword;         // null 또는 blank이면 검색 안 함
+    @Schema(description = "특정 동화 기준 필터 (미입력 시 전체)", example = "5")
+    private Long storyId;
+
+    @Schema(description = "즐겨찾기 여부 필터 (true면 즐겨찾기만, 미입력 시 전체)", example = "true")
+    private Boolean favorite;
+
+    @Schema(description = "단어 원문 또는 번역어 검색 키워드", example = "사자")
+    private String keyword;
 }

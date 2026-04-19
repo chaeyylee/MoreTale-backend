@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -54,7 +55,16 @@ public class VocabularyController {
      * POST /api/vocabulary
      * 단어 저장
      */
-    @Operation(summary = "단어 저장", description = "하이라이트 단어를 단어장에 저장합니다.")
+    @Operation(
+            summary = "단어 저장",
+            description = """
+                    하이라이트 단어를 단어장에 저장합니다.
+                    
+                    - 단어 원문, 번역어, 뜻 설명, 발음 오디오 URL을 함께 저장합니다.
+                    - 출처 동화 / 슬라이드 / 토큰 정보가 함께 연결됩니다.
+                    - 이후 단어장 조회, 즐겨찾기, 학습 상태 관리에 활용됩니다.
+                    """
+    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<VocabularyResponse> save(
@@ -110,8 +120,7 @@ public class VocabularyController {
             @RequestParam(name = "favorite", required = false) Boolean favorite,
             @Parameter(description = "단어/번역어 검색 키워드")
             @RequestParam(name = "keyword", required = false) String keyword,
-            @Parameter(description = "페이징 및 정렬 (기본: 즐겨찾기 우선 → 최신순)")
-            // ✅ 변경: 기본 정렬을 createdAt DESC로 명시 (isFavorite DESC는 Service에서 자동 삽입)
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
@@ -143,7 +152,12 @@ public class VocabularyController {
      */
     @Operation(
             summary = "단어가 저장된 동화 목록 조회",
-            description = "단어장에 단어가 저장된 동화 목록과 각 동화별 단어 수를 반환합니다."
+            description = """
+                    단어장에 단어가 저장된 동화 목록과 각 동화별 저장 단어 수를 반환합니다.
+                    
+                    - 동화 제목, 언어쌍, 생성일시를 함께 제공합니다.
+                    - 각 동화에서 저장한 단어 수(wordCount)를 확인할 수 있습니다.
+                    """
     )
     @GetMapping("/stories")
     public ApiResponse<List<VocabularyStoryResponse>> getStoriesWithVocabulary(
@@ -160,7 +174,15 @@ public class VocabularyController {
      */
     @Operation(
             summary = "단어장 항목 수정",
-            description = "즐겨찾기, 학습상태, 메모를 수정합니다. null인 필드는 변경되지 않습니다."
+            description = """
+                    단어장 항목을 부분 수정합니다.
+                    
+                    - `isFavorite` : 즐겨찾기 여부
+                    - `learningStatus` : 학습 상태
+                    - `memo` : 사용자 메모
+                    
+                    null인 필드는 변경되지 않습니다.
+                    """
     )
     @PatchMapping("/{vocabularyId}")
     public ApiResponse<VocabularyResponse> patch(
@@ -177,13 +199,21 @@ public class VocabularyController {
      * DELETE /api/vocabulary/{vocabularyId}
      * 단어 삭제
      */
-    @Operation(summary = "단어 삭제", description = "단어장에서 단어를 삭제합니다.")
+    @Operation(
+            summary = "단어 삭제",
+            description = """
+                    단어장에서 단어를 삭제합니다.
+                    
+                    - 본인 소유의 단어장 항목만 삭제할 수 있습니다.
+                    - 삭제된 단어는 복구되지 않습니다.
+                    """
+    )
     @DeleteMapping("/{vocabularyId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(
+    public ApiResponse<Void> delete(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable(name = "vocabularyId") Long vocabularyId
     ) {
         vocabularyService.delete(principal.getUserId(), vocabularyId);
+        return ApiResponse.success(null, "단어가 삭제되었습니다.");
     }
 }

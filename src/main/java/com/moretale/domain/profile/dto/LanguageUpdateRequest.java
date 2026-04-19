@@ -25,7 +25,7 @@ public class LanguageUpdateRequest {
     private Language firstLanguage;
 
     @Size(max = 100, message = "직접 입력 언어명은 100자 이하여야 합니다.")
-    @Schema(description = "첫 번째 언어 직접 입력 (OTHER 시 필수)", example = "태국어")
+    @Schema(description = "첫 번째 언어 직접 입력 (OTHER 선택 시 필수)", example = "태국어")
     private String customFirstLanguage;
 
     @NotNull(message = "두 번째 언어는 필수입니다.")
@@ -33,7 +33,7 @@ public class LanguageUpdateRequest {
     private Language secondLanguage;
 
     @Size(max = 100, message = "직접 입력 언어명은 100자 이하여야 합니다.")
-    @Schema(description = "두 번째 언어 직접 입력 (OTHER 시 필수)")
+    @Schema(description = "두 번째 언어 직접 입력 (OTHER 선택 시 필수)", example = "힌디어")
     private String customSecondLanguage;
 
     // OTHER 선택 시 custom 값 검증

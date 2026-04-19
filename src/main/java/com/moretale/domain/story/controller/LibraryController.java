@@ -4,10 +4,10 @@ import com.moretale.domain.story.dto.StoryLibraryCardResponse;
 import com.moretale.domain.story.service.LibraryService;
 import com.moretale.global.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -42,14 +42,6 @@ public class LibraryController {
 
     private final LibraryService libraryService;
 
-    /**
-     * 도서관 목록 조회
-     * GET /api/library
-     * GET /api/library?sort=createdAt,desc  (최신순 - 기본값)
-     * GET /api/library?sort=createdAt,asc   (오래된순)
-     * GET /api/library?sort=title,asc       (가나다순)
-     * GET /api/library?page=0&size=10&sort=createdAt,desc
-     */
     @Operation(
             summary = "도서관 목록 조회",
             description = """
@@ -59,6 +51,11 @@ public class LibraryController {
                     - `sort=createdAt,desc` : 최신순 (기본값)
                     - `sort=createdAt,asc`  : 오래된순
                     - `sort=title,asc`      : 가나다순
+                    
+                    **페이징 파라미터**
+                    - `page` : 페이지 번호 (0부터 시작)
+                    - `size` : 페이지 크기
+                    - `sort` : 정렬 조건
                     
                     **응답 필드**
                     - `storyId` : 동화 ID
@@ -72,7 +69,7 @@ public class LibraryController {
     @GetMapping
     public ApiResponse<Page<StoryLibraryCardResponse>> getLibrary(
             @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "페이징 및 정렬 (sort=createdAt,desc | sort=title,asc)")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
@@ -85,13 +82,6 @@ public class LibraryController {
         return ApiResponse.success(result, "도서관 조회 성공");
     }
 
-    /**
-     * 도서관에서 동화 삭제
-     * DELETE /api/library/{storyId}
-     *
-     * Story 삭제 = 동화 자체 삭제 (숨김 아님)
-     * cascade 삭제: Story → Slide → StoryToken → VocabularyEntry
-     */
     @Operation(
             summary = "도서관 동화 삭제",
             description = """

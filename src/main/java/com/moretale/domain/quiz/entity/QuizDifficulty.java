@@ -2,11 +2,11 @@ package com.moretale.domain.quiz.entity;
 
 import com.moretale.domain.profile.entity.AgeGroup;
 import com.moretale.domain.profile.entity.LanguageProficiency;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-// 퀴즈 난이도
-// 연령 그룹 + 언어 숙련도를 조합하여 결정
+@Schema(description = "퀴즈 난이도 (연령 + 언어 숙련도 기반 자동 결정)")
 @Getter
 @RequiredArgsConstructor
 public enum QuizDifficulty {

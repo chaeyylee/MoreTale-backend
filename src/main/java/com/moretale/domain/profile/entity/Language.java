@@ -1,13 +1,10 @@
 package com.moretale.domain.profile.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-/**
- * 지원 언어 Enum
- * - KO ~ VI : 사전 정의된 언어 (UI 버튼 선택)
- * - OTHER   : 기타 (사용자 직접 입력 → customFirstLanguage / customSecondLanguage 사용)
- */
+@Schema(description = "지원 언어 (KO ~ OTHER). OTHER 선택 시 customLanguage 필드에 직접 입력 필요")
 @Getter
 @RequiredArgsConstructor
 public enum Language {
@@ -18,10 +15,10 @@ public enum Language {
     ZH("중국어", "zh"),
     ES("스페인어", "es"),
     VI("베트남어", "vi"),
-    OTHER("기타", null); // 직접 입력
+    OTHER("기타", null);
 
-    private final String description; // UI 표시명
-    private final String isoCode;     // ISO 639-1 코드 (OTHER는 null)
+    private final String description;
+    private final String isoCode;
 
     /**
      * 하위 호환성: 기존 String 코드 → Language Enum 변환

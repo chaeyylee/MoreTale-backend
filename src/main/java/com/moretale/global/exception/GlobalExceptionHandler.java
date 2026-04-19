@@ -1,6 +1,9 @@
 package com.moretale.global.exception;
 
-import com.moretale.domain.vocabulary.exception.*;
+import com.moretale.domain.vocabulary.exception.TokenNotFoundException;
+import com.moretale.domain.vocabulary.exception.VocabularyAccessDeniedException;
+import com.moretale.domain.vocabulary.exception.VocabularyDuplicateException;
+import com.moretale.domain.vocabulary.exception.VocabularyNotFoundException;
 import com.moretale.global.common.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -9,7 +12,6 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.HashMap;
@@ -19,7 +21,7 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // ── 1. 비즈니스 / 커스텀 공통 예외 (ErrorCode 기반) ──────────────────────
+    // 1. 비즈니스 예외 (ErrorCode 기반)
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
@@ -32,7 +34,6 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(errorCode.getCode(), e.getMessage()));
     }
 
-    // Custom Exception 처리
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<ApiResponse<Void>> handleCustomException(CustomException e) {
         log.error("CustomException: {}", e.getMessage());
@@ -44,45 +45,52 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(errorCode.getCode(), e.getMessage()));
     }
 
-    // ── 2. Vocabulary 도메인 전용 예외 (HTTP 상태코드 고정형) ──────────────────
+    // 2. Vocabulary 도메인 예외
+    // ResponseEntity<ApiResponse<...>> 구조로 통일하여 상태코드와 응답 바디를 일관되게 반환
 
-    @ResponseStatus(HttpStatus.NOT_FOUND)
     @ExceptionHandler(VocabularyNotFoundException.class)
-    public ApiResponse<Void> handleVocabularyNotFound(VocabularyNotFoundException e) {
+    public ResponseEntity<ApiResponse<Void>> handleVocabularyNotFound(VocabularyNotFoundException e) {
         log.error("VocabularyNotFoundException: {}", e.getMessage());
-        return ApiResponse.error("VOCABULARY_NOT_FOUND", e.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("VOCABULARY_NOT_FOUND", e.getMessage()));
     }
 
-    @ResponseStatus(HttpStatus.FORBIDDEN)
     @ExceptionHandler(VocabularyAccessDeniedException.class)
-    public ApiResponse<Void> handleVocabularyAccessDenied(VocabularyAccessDeniedException e) {
+    public ResponseEntity<ApiResponse<Void>> handleVocabularyAccessDenied(VocabularyAccessDeniedException e) {
         log.error("VocabularyAccessDeniedException: {}", e.getMessage());
-        return ApiResponse.error("VOCABULARY_ACCESS_DENIED", e.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error("VOCABULARY_ACCESS_DENIED", e.getMessage()));
     }
 
-    @ResponseStatus(HttpStatus.CONFLICT)
     @ExceptionHandler(VocabularyDuplicateException.class)
-    public ApiResponse<Void> handleVocabularyDuplicate(VocabularyDuplicateException e) {
+    public ResponseEntity<ApiResponse<Void>> handleVocabularyDuplicate(VocabularyDuplicateException e) {
         log.error("VocabularyDuplicateException: {}", e.getMessage());
-        return ApiResponse.error("VOCABULARY_DUPLICATE", e.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("VOCABULARY_DUPLICATE", e.getMessage()));
     }
 
-    @ResponseStatus(HttpStatus.NOT_FOUND)
     @ExceptionHandler(TokenNotFoundException.class)
-    public ApiResponse<Void> handleTokenNotFound(TokenNotFoundException e) {
+    public ResponseEntity<ApiResponse<Void>> handleTokenNotFound(TokenNotFoundException e) {
         log.error("TokenNotFoundException: {}", e.getMessage());
-        return ApiResponse.error("TOKEN_NOT_FOUND", e.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("TOKEN_NOT_FOUND", e.getMessage()));
     }
 
-    // ── 3. 클라이언트 요청 에러 (Validation / JSON Parsing) ──────────────────
+    // 3. 클라이언트 요청 오류
 
-    /**
-     * @Valid 검증 실패 시 발생 (필수값 누락 등)
-     */
+    // @Valid 검증 실패 시 발생 (필수값 누락 등)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationException(
-            MethodArgumentNotValidException e) {
-
+            MethodArgumentNotValidException e
+    ) {
         log.error("ValidationException: {}", e.getMessage());
 
         Map<String, String> errors = new HashMap<>();
@@ -97,22 +105,24 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("VALIDATION_ERROR", "입력값 검증 실패", errors));
     }
 
-    /**
-     * JSON 파싱 에러 (타입 불일치 - String을 Long에 넣으려 할 때 등)
-     */
+    // JSON 파싱 에러 (타입 불일치, 잘못된 형식 등)
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
+    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException e
+    ) {
         log.error("HttpMessageNotReadableException: {}", e.getMessage());
         return ResponseEntity
                 .badRequest()
-                .body(ApiResponse.error("INVALID_JSON_FORMAT", "요청 데이터 형식이 올바르지 않습니다. 필드 타입을 확인해주세요."));
+                .body(ApiResponse.error(
+                        "INVALID_JSON_FORMAT",
+                        "요청 데이터 형식이 올바르지 않습니다. 필드 타입을 확인해주세요."
+                ));
     }
 
-    // ── 4. 기타 예외 (최종 방어선) ──────────────────────────────────────────────
+    // 4. 최종 방어선
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
-        // 상세 스택 트레이스는 로그로 남겨 추적 가능하게 함
         log.error("Unexpected Exception: ", e);
 
         return ResponseEntity
