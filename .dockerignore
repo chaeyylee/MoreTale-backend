@@ -1,0 +1,9 @@
+.git
+.gitignore
+.idea
+.gradle
+out
+*.log
+*.md
+gradlew.bat
+src/test
