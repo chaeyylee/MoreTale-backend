@@ -3,17 +3,13 @@ package com.moretale.domain.honeyjar.controller;
 import com.moretale.domain.honeyjar.dto.HoneyJarHistoryResponse;
 import com.moretale.domain.honeyjar.dto.HoneyJarResponse;
 import com.moretale.domain.honeyjar.service.HoneyJarService;
-import com.moretale.domain.user.entity.User;
-import com.moretale.domain.user.repository.UserRepository;
 import com.moretale.global.common.ApiResponse;
-import com.moretale.global.exception.BusinessException;
-import com.moretale.global.exception.ErrorCode;
+import com.moretale.global.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,7 +22,7 @@ import java.util.List;
 public class HoneyJarController {
 
     private final HoneyJarService honeyJarService;
-    private final UserRepository userRepository;
+    // UserRepository 의존성 제거 - Service에서 User 조회를 담당
 
     // 꿀단지 현황 조회
     // GET /api/honey-jar
@@ -34,9 +30,6 @@ public class HoneyJarController {
             summary = "꿀단지 현황 조회",
             description = """
                     현재 사용자의 꿀단지 보유 현황을 조회합니다.
-                    
-                    **조회 기준**
-                    - 현재 로그인한 사용자 기준으로 조회합니다.
                     
                     **응답 정보**
                     - `count`: 현재 보유 꿀단지 수
@@ -46,14 +39,12 @@ public class HoneyJarController {
     )
     @GetMapping
     public ApiResponse<HoneyJarResponse> getHoneyJar(
-            @AuthenticationPrincipal UserDetails userDetails
+            @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
-        log.info("꿀단지 조회 요청 - email={}", userDetails.getUsername());
+        log.info("꿀단지 조회 요청 - userId={}", userPrincipal.getUserId());
 
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-
-        HoneyJarResponse response = honeyJarService.getHoneyJar(user);
+        // Service 내부에서 userId → User 조회 처리
+        HoneyJarResponse response = honeyJarService.getHoneyJarByUserId(userPrincipal.getUserId());
         return ApiResponse.success(response, "꿀단지 조회 성공");
     }
 
@@ -63,10 +54,6 @@ public class HoneyJarController {
             summary = "꿀단지 이력 조회",
             description = """
                     현재 사용자의 꿀단지 획득/사용 이력을 최신순으로 조회합니다.
-                    
-                    **조회 기준**
-                    - 현재 로그인한 사용자 기준으로 조회합니다.
-                    - 최근 이력이 먼저 반환됩니다.
                     
                     **응답 정보**
                     - `actionType`: 변동 유형
@@ -79,14 +66,14 @@ public class HoneyJarController {
     )
     @GetMapping("/history")
     public ApiResponse<List<HoneyJarHistoryResponse>> getHoneyJarHistory(
-            @AuthenticationPrincipal UserDetails userDetails
+            @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
-        log.info("꿀단지 이력 조회 요청 - email={}", userDetails.getUsername());
+        log.info("꿀단지 이력 조회 요청 - userId={}", userPrincipal.getUserId());
 
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-
-        List<HoneyJarHistoryResponse> response = honeyJarService.getHoneyJarHistory(user);
+        // Controller에서 직접 User 조회하던 코드 제거
+        // Service 내부에서 userId → User 조회 처리
+        List<HoneyJarHistoryResponse> response =
+                honeyJarService.getHoneyJarHistoryByUserId(userPrincipal.getUserId());
         return ApiResponse.success(response, "꿀단지 이력 조회 성공");
     }
 }

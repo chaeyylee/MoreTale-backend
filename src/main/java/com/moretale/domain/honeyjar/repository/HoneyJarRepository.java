@@ -14,13 +14,22 @@ import java.util.Optional;
 @Repository
 public interface HoneyJarRepository extends JpaRepository<HoneyJar, Long> {
 
-    // 사용자로 꿀단지 조회
+    // User 엔티티 기반 조회 (HoneyJarService 내부에서 User 객체가 있을 때 사용)
     Optional<HoneyJar> findByUser(User user);
 
-    // 동시성 제어를 위한 비관적 락 조회 (꿀단지 차감 시 사용)
+    // 동시성 제어를 위한 비관적 락 조회 - User 엔티티 기반
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT h FROM HoneyJar h WHERE h.user = :user")
     Optional<HoneyJar> findByUserWithLock(@Param("user") User user);
+
+    // userId 기반 조회 - User 엔티티 조회 없이 직접 사용 가능
+    @Query("SELECT h FROM HoneyJar h WHERE h.user.userId = :userId")
+    Optional<HoneyJar> findByUserId(@Param("userId") Long userId);
+
+    // userId 기반 비관적 락 조회
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT h FROM HoneyJar h WHERE h.user.userId = :userId")
+    Optional<HoneyJar> findByUserIdWithLock(@Param("userId") Long userId);
 
     // 회원 탈퇴 시 꿀단지 삭제
     void deleteByUser(User user);
