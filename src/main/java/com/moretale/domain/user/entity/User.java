@@ -38,10 +38,6 @@ public class User implements UserDetails {
     @Column(length = 50)
     private String nickname;
 
-    // 사용자 지역 정보 (선택 사항)
-    @Column(length = 100)
-    private String region;
-
     // 사용자 권한
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -68,7 +64,7 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserProfile> profiles = new ArrayList<>();
 
-    // [1:N 관계] 한 명의 사용자는 여러 개의 동화를 생성할 수 있음
+    // 1:N 관계 설정: 한 명의 사용자는 여러 개의 동화를 생성할 수 있음
     // CascadeType.ALL: User 삭제 시 연관된 모든 Story 데이터도 함께 삭제
     // orphanRemoval = true: User의 stories 리스트에서 제거된 Story 엔티티는 DB에서도 삭제
     @Builder.Default

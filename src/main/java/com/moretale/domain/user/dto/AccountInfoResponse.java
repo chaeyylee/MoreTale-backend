@@ -28,9 +28,6 @@ public class AccountInfoResponse {
     @Schema(description = "OAuth 제공자", example = "google")
     private String provider;
 
-    @Schema(description = "지역 정보", example = "서울")
-    private String region;
-
     @Schema(description = "가입일시 (ISO 8601)", example = "2024-01-01T00:00:00Z")
     private LocalDateTime createdAt;
 
@@ -40,7 +37,6 @@ public class AccountInfoResponse {
                 .email(user.getEmail())
                 .nickname(user.getNickname())
                 .provider(user.getProvider())
-                .region(user.getRegion())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

@@ -27,9 +27,6 @@ public class UserResponse {
     @Schema(description = "닉네임", example = "홍길동")
     private String nickname;
 
-    @Schema(description = "지역 정보", example = "서울")
-    private String region;
-
     @Schema(description = "권한 (USER / ADMIN)", example = "USER")
     private String role;
 
@@ -41,7 +38,6 @@ public class UserResponse {
                 .userId(user.getUserId())
                 .email(user.getEmail())
                 .nickname(user.getNickname())
-                .region(user.getRegion())
                 .role(user.getRole().name())
                 .createdAt(user.getCreatedAt())
                 .build();

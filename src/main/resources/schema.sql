@@ -5,7 +5,6 @@ CREATE TABLE IF NOT EXISTS users (
     user_id BIGSERIAL PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     nickname VARCHAR(50),
-    region VARCHAR(100),
     role VARCHAR(20) NOT NULL DEFAULT 'USER',
     provider VARCHAR(20),
     provider_id VARCHAR(255),
