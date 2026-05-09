@@ -1,7 +1,12 @@
 package com.moretale.domain.vocabulary.exception;
 
-public class VocabularyDuplicateException extends RuntimeException {
+import com.moretale.global.exception.BusinessException;
+import com.moretale.global.exception.ErrorCode;
+
+public class VocabularyDuplicateException extends BusinessException {
+
     public VocabularyDuplicateException(String normalizedWord) {
-        super("이미 저장된 단어입니다. word=" + normalizedWord);
+        super(ErrorCode.INVALID_INPUT_VALUE,
+                "이미 저장된 단어입니다. word=" + normalizedWord);
     }
 }

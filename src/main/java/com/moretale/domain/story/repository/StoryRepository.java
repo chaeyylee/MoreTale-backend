@@ -18,21 +18,21 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
     // 특정 사용자의 동화 목록 조회 (최신순)
     List<Story> findAllByUserOrderByCreatedAtDesc(User user);
 
-    // userId 기반 동화 목록 조회 (최신순) - 불필요한 User 엔티티 조회 제거
+    // userId 기반 동화 목록 조회 (최신순)
     @Query("SELECT s FROM Story s WHERE s.user.userId = :userId ORDER BY s.createdAt DESC")
     List<Story> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId);
 
     // 공개된 동화 목록 조회 (최신순)
     List<Story> findByIsPublicTrueOrderByCreatedAtDesc();
 
-    // 특정 동화 ID와 사용자로 조회 (권한 체크용)
-    Optional<Story> findByStoryIdAndUser(Long storyId, User user);
-
-    // [추가] storyId + userId 기반 소유권 확인 조회 - User 엔티티 조회 불필요
+    // storyId + userId 기반 소유권 확인 조회
     @Query("SELECT s FROM Story s WHERE s.storyId = :storyId AND s.user.userId = :userId")
-    Optional<Story> findByStoryIdAndUserId(@Param("storyId") Long storyId, @Param("userId") Long userId);
+    Optional<Story> findByStoryIdAndUserId(
+            @Param("storyId") Long storyId,
+            @Param("userId") Long userId
+    );
 
-    // 슬라이드 Fetch Join (상세 조회용 - MultipleBagFetchException 방지)
+    // 슬라이드 Fetch Join (상세 조회용)
     @Query("""
         SELECT DISTINCT s FROM Story s
         LEFT JOIN FETCH s.slides sl
@@ -64,14 +64,14 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
      */
     @Query(
             value = """
-            SELECT DISTINCT s FROM Story s
-            LEFT JOIN FETCH s.slides sl
-            WHERE s.user.userId = :userId
-        """,
+                SELECT DISTINCT s FROM Story s
+                LEFT JOIN FETCH s.slides sl
+                WHERE s.user.userId = :userId
+            """,
             countQuery = """
-            SELECT COUNT(s) FROM Story s
-            WHERE s.user.userId = :userId
-        """
+                SELECT COUNT(s) FROM Story s
+                WHERE s.user.userId = :userId
+            """
     )
     Page<Story> findByUserIdWithSlides(@Param("userId") Long userId, Pageable pageable);
 

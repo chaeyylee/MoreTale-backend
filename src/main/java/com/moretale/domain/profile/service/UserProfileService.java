@@ -6,7 +6,7 @@ import com.moretale.domain.profile.entity.UserProfile;
 import com.moretale.domain.profile.repository.UserProfileRepository;
 import com.moretale.domain.user.entity.User;
 import com.moretale.domain.user.repository.UserRepository;
-import com.moretale.global.exception.CustomException;
+import com.moretale.global.exception.BusinessException;
 import com.moretale.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+// 사용자 프로필 서비스
+// CustomException -> BusinessException으로 통일
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -31,11 +33,11 @@ public class UserProfileService {
         log.info("온보딩 프로필 생성 시작 - userId: {}", userId);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 동일한 이름의 아이가 이미 등록되어 있는지 체크
         if (userProfileRepository.existsByUser_UserIdAndChildName(userId, request.getChildName())) {
-            throw new CustomException(ErrorCode.PROFILE_ALREADY_EXISTS);
+            throw new BusinessException(ErrorCode.PROFILE_ALREADY_EXISTS);
         }
 
         // OTHER가 아닌 경우 customLanguage는 null 처리 (Entity에서도 처리하지만 명시적으로)
@@ -88,11 +90,11 @@ public class UserProfileService {
         log.info("프로필 생성 시작 - userId: {}", userId);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 동일한 이름의 아이가 이미 등록되어 있는지 체크
         if (userProfileRepository.existsByUser_UserIdAndChildName(userId, request.getChildName())) {
-            throw new CustomException(ErrorCode.PROFILE_ALREADY_EXISTS);
+            throw new BusinessException(ErrorCode.PROFILE_ALREADY_EXISTS);
         }
 
         String customFirst = (request.getFirstLanguage() == Language.OTHER)
@@ -139,31 +141,31 @@ public class UserProfileService {
                 .collect(Collectors.toList());
     }
 
-    // 특정 프로필 상세 조회 (profileId 기준)
+    // 특정 프로필 상세 조회
     public UserProfileResponse getProfile(Long profileId) {
         log.info("프로필 상세 조회 - profileId: {}", profileId);
 
         UserProfile profile = userProfileRepository.findById(profileId)
-                .orElseThrow(() -> new CustomException(ErrorCode.PROFILE_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_NOT_FOUND));
 
         return UserProfileResponse.fromEntity(profile);
     }
 
-    // 프로필 정보 수정 (profileId 기준)
+    // 프로필 정보 수정
     @Transactional
     public UserProfileResponse updateProfile(Long userId, Long profileId, UserProfileRequest request) {
         log.info("프로필 수정 시작 - userId: {}, profileId: {}", userId, profileId);
 
         userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 프로필 존재 확인
         UserProfile profile = userProfileRepository.findById(profileId)
-                .orElseThrow(() -> new CustomException(ErrorCode.PROFILE_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_NOT_FOUND));
 
         // 본인의 프로필인지 권한 확인
         if (!profile.getUser().getUserId().equals(userId)) {
-            throw new CustomException(ErrorCode.FORBIDDEN);
+            throw new BusinessException(ErrorCode.FORBIDDEN);
         }
 
         // 프로필 업데이트 메서드 사용
@@ -192,7 +194,7 @@ public class UserProfileService {
         return UserProfileResponse.fromEntity(profile);
     }
 
-    // 언어 설정만 수정 (profileId 기준)
+    // 언어 설정만 수정
     @Transactional
     public UserProfileResponse updateLanguage(Long profileId, LanguageUpdateRequest request) {
         log.info("언어 설정 수정 - profileId: {}", profileId);
@@ -201,7 +203,7 @@ public class UserProfileService {
         request.validate();
 
         UserProfile profile = userProfileRepository.findById(profileId)
-                .orElseThrow(() -> new CustomException(ErrorCode.PROFILE_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_NOT_FOUND));
 
         // Enum 기반으로 언어 업데이트
         profile.setFirstLanguage(request.getFirstLanguage());
@@ -228,12 +230,14 @@ public class UserProfileService {
     @Transactional
     public void deleteProfile(Long profileId) {
         log.info("프로필 삭제 - profileId: {}", profileId);
+
         UserProfile profile = userProfileRepository.findById(profileId)
-                .orElseThrow(() -> new CustomException(ErrorCode.PROFILE_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_NOT_FOUND));
+
         userProfileRepository.delete(profile);
     }
 
-    // 프로필 존재 여부 확인 (최소 하나 이상의 프로필이 있는지)
+    // 프로필 존재 여부 확인
     public boolean hasProfile(Long userId) {
         return userProfileRepository.existsByUser_UserId(userId);
     }

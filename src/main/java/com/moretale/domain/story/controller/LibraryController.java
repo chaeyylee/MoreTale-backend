@@ -3,6 +3,7 @@ package com.moretale.domain.story.controller;
 import com.moretale.domain.story.dto.StoryLibraryCardResponse;
 import com.moretale.domain.story.service.LibraryService;
 import com.moretale.global.common.ApiResponse;
+import com.moretale.global.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -68,15 +68,15 @@ public class LibraryController {
     )
     @GetMapping
     public ApiResponse<Page<StoryLibraryCardResponse>> getLibrary(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
-        log.info("도서관 조회 - email={}, sort={}", userDetails.getUsername(), pageable.getSort());
+        log.info("도서관 조회 - userId={}, sort={}", userPrincipal.getUserId(), pageable.getSort());
 
         Page<StoryLibraryCardResponse> result = libraryService.getLibrary(
-                userDetails.getUsername(), pageable
+                userPrincipal.getUserId(), pageable
         );
 
         return ApiResponse.success(result, "도서관 조회 성공");
@@ -98,13 +98,13 @@ public class LibraryController {
     )
     @DeleteMapping("/{storyId}")
     public ApiResponse<Void> deleteFromLibrary(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable(name = "storyId") Long storyId
     ) {
-        log.info("도서관 동화 삭제 요청 - email={}, storyId={}",
-                userDetails.getUsername(), storyId);
+        log.info("도서관 동화 삭제 요청 - userId={}, storyId={}",
+                userPrincipal.getUserId(), storyId);
 
-        libraryService.deleteFromLibrary(userDetails.getUsername(), storyId);
+        libraryService.deleteFromLibrary(userPrincipal.getUserId(), storyId);
 
         return ApiResponse.success(null, "동화가 삭제되었습니다.");
     }

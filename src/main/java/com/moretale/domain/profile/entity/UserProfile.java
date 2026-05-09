@@ -49,10 +49,8 @@ public class UserProfile {
     private Integer childAge;
 
     // 언어 (Enum + Custom)
-    /**
-     * 첫 번째 언어 Enum (Source of Truth)
-     * OTHER 선택 시 customFirstLanguage에 실제 언어명 저장
-     */
+    // 첫 번째 언어 Enum (Source of Truth)
+    // OTHER 선택 시 customFirstLanguage에 실제 언어명 저장
     @Enumerated(EnumType.STRING)
     @Column(name = "first_language_enum", nullable = false, length = 10)
     private Language firstLanguage;
@@ -60,10 +58,8 @@ public class UserProfile {
     @Column(name = "custom_first_language", length = 100)
     private String customFirstLanguage;
 
-    /**
-     * 두 번째 언어 Enum (Source of Truth)
-     * OTHER 선택 시 customSecondLanguage에 실제 언어명 저장
-     */
+    // 두 번째 언어 Enum (Source of Truth)
+    // OTHER 선택 시 customSecondLanguage에 실제 언어명 저장
     @Enumerated(EnumType.STRING)
     @Column(name = "second_language_enum", nullable = false, length = 10)
     private Language secondLanguage;
@@ -124,7 +120,6 @@ public class UserProfile {
     /**
      * @deprecated firstLanguage(Enum) 기반으로 syncLegacyLanguages() 통해 자동 동기화.
      *             StoryService, TTS, Quiz 등 기존 참조 로직 유지용.
-     *             향후 제거 예정.
      */
     @Deprecated
     @Column(name = "primary_language", length = 100)
@@ -176,10 +171,8 @@ public class UserProfile {
         }
     }
 
-    /**
-     * 첫 번째 언어 표시명 반환 (UI/로그용)
-     * ex) KO → "한국어", OTHER + customValue → "태국어"
-     */
+    // 첫 번째 언어 표시명 반환 (UI/로그용)
+    // ex) KO → "한국어", OTHER + customValue → "태국어"
     public String getFirstLanguageDisplay() {
         if (this.firstLanguage == Language.OTHER) {
             return this.customFirstLanguage != null ? this.customFirstLanguage : "기타";

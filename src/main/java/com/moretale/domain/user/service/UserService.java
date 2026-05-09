@@ -12,7 +12,7 @@ import com.moretale.domain.user.dto.UsageStatusResponse;
 import com.moretale.domain.user.dto.UserResponse;
 import com.moretale.domain.user.entity.User;
 import com.moretale.domain.user.repository.UserRepository;
-import com.moretale.global.exception.CustomException;
+import com.moretale.global.exception.BusinessException;
 import com.moretale.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -112,7 +112,7 @@ public class UserService {
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
     }
 
     // 사용 현황 빌드

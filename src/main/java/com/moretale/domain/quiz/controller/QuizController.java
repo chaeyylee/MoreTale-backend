@@ -3,6 +3,7 @@ package com.moretale.domain.quiz.controller;
 import com.moretale.domain.quiz.dto.*;
 import com.moretale.domain.quiz.service.QuizService;
 import com.moretale.global.common.ApiResponse;
+import com.moretale.global.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -10,7 +11,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Quiz", description = "퀴즈 & 꿀단지 보상 API")
@@ -61,7 +61,7 @@ public class QuizController {
     )
     @GetMapping
     public ApiResponse<QuizResponse> getQuiz(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(
                     name = "storyId",
                     description = "조회할 동화 ID입니다. query parameter로 전달합니다. 예: /api/quiz?storyId=20",
@@ -70,9 +70,9 @@ public class QuizController {
             )
             @RequestParam(name = "storyId") Long storyId
     ) {
-        log.info("퀴즈 조회 요청 - email={}, storyId={}", userDetails.getUsername(), storyId);
+        log.info("퀴즈 조회 요청 - userId={}, storyId={}", userPrincipal.getUserId(), storyId);
 
-        QuizResponse response = quizService.getOrGenerateQuiz(userDetails.getUsername(), storyId);
+        QuizResponse response = quizService.getOrGenerateQuiz(userPrincipal.getUserId(), storyId);
         return ApiResponse.success(response, "퀴즈 조회 성공");
     }
 
@@ -107,12 +107,12 @@ public class QuizController {
     )
     @PostMapping("/submit")
     public ApiResponse<QuizResultResponse> submitQuiz(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody QuizSubmitRequest request
     ) {
-        log.info("퀴즈 제출 요청 - email={}, quizId={}", userDetails.getUsername(), request.getQuizId());
+        log.info("퀴즈 제출 요청 - userId={}, quizId={}", userPrincipal.getUserId(), request.getQuizId());
 
-        QuizResultResponse response = quizService.submitQuiz(userDetails.getUsername(), request);
+        QuizResultResponse response = quizService.submitQuiz(userPrincipal.getUserId(), request);
         return ApiResponse.success(response, "퀴즈 채점 완료");
     }
 
@@ -138,13 +138,13 @@ public class QuizController {
     )
     @PostMapping("/story-complete")
     public ApiResponse<QuizResultResponse.HoneyJarRewardInfo> completeStory(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody StoryCompleteRequest request
     ) {
-        log.info("동화 완독 요청 - email={}, storyId={}", userDetails.getUsername(), request.getStoryId());
+        log.info("동화 완독 요청 - userId={}, storyId={}", userPrincipal.getUserId(), request.getStoryId());
 
         QuizResultResponse.HoneyJarRewardInfo rewardInfo =
-                quizService.completeStory(userDetails.getUsername(), request.getStoryId());
+                quizService.completeStory(userPrincipal.getUserId(), request.getStoryId());
 
         return ApiResponse.success(rewardInfo, "동화 완독 처리 완료");
     }
