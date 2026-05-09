@@ -1,12 +1,10 @@
 package com.moretale.domain.user.service;
 
-import com.moretale.domain.honeyjar.entity.HoneyJar;
 import com.moretale.domain.honeyjar.repository.HoneyJarHistoryRepository;
 import com.moretale.domain.honeyjar.repository.HoneyJarRepository;
 import com.moretale.domain.profile.dto.UserProfileResponse;
 import com.moretale.domain.profile.repository.UserProfileRepository;
 import com.moretale.domain.story.dto.RecentStoryResponse;
-import com.moretale.domain.story.entity.Story;
 import com.moretale.domain.story.repository.StoryRepository;
 import com.moretale.domain.user.dto.AccountInfoResponse;
 import com.moretale.domain.user.dto.MyPageResponse;
@@ -36,46 +34,18 @@ public class UserService {
     private final HoneyJarHistoryRepository honeyJarHistoryRepository;
     private final StoryRepository storyRepository;
 
-    /** 최근 동화 조회 건수 */
+    // 최근 동화 조회 건수
     private static final int RECENT_STORY_LIMIT = 5;
 
-    // ────────────────────────────────────────────────────────────────────
-    // 기존 API
-    // ────────────────────────────────────────────────────────────────────
-
-    /** 사용자 단순 정보 조회 (기존 /me API용) */
+    // 사용자 단순 정보 조회
     public UserResponse getUserInfo(Long userId) {
         log.info("사용자 정보 조회 - userId: {}", userId);
         User user = findUserById(userId);
         return UserResponse.fromEntity(user);
     }
 
-    /** 사용자 지역 설정 (기존 API) */
-    @Transactional
-    public UserResponse updateRegion(Long userId, String region) {
-        log.info("사용자 지역 설정 - userId: {}, region: {}", userId, region);
-        User user = findUserById(userId);
-        user.setRegion(region);
-        log.info("사용자 지역 설정 완료 - userId: {}", userId);
-        return UserResponse.fromEntity(user);
-    }
-
-    // ────────────────────────────────────────────────────────────────────
     // 마이페이지 통합 조회
-    // ────────────────────────────────────────────────────────────────────
-
-    /**
-     * 마이페이지 통합 조회
-     * GET /api/users/mypage
-     *
-     * <p>구성:
-     * <ul>
-     *   <li>계정 정보 (read-only)</li>
-     *   <li>자녀 프로필 목록</li>
-     *   <li>사용 현황 (꿀단지 + 무료 동화 잔여 횟수 + 누적 동화 수)</li>
-     *   <li>최근 생성 동화 5건</li>
-     * </ul>
-     */
+    // GET /api/users/mypage
     public MyPageResponse getMyPage(Long userId) {
         log.info("마이페이지 조회 - userId: {}", userId);
 
@@ -113,23 +83,8 @@ public class UserService {
                 .build();
     }
 
-    // ────────────────────────────────────────────────────────────────────
     // 회원 탈퇴
-    // ────────────────────────────────────────────────────────────────────
-
-    /**
-     * 회원 탈퇴
-     * DELETE /api/users/delete
-     *
-     * <p>연관 데이터 처리 정책:
-     * <ul>
-     *   <li>HoneyJarHistory → 먼저 삭제 (FK 제약)</li>
-     *   <li>HoneyJar → 삭제</li>
-     *   <li>Story / Slide / StoryToken → Story 삭제 시 CascadeType.ALL로 자동 처리</li>
-     *   <li>UserProfile → User CascadeType.ALL + orphanRemoval로 자동 처리</li>
-     *   <li>User → 최종 삭제</li>
-     * </ul>
-     */
+    // DELETE /api/users/delete
     @Transactional
     public void deleteUser(Long userId) {
         log.info("회원 탈퇴 처리 시작 - userId: {}", userId);
@@ -155,19 +110,13 @@ public class UserService {
         log.info("회원 탈퇴 완료 - userId: {}", userId);
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    // private 헬퍼
-    // ────────────────────────────────────────────────────────────────────
-
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
-    /**
-     * 사용 현황 빌드
-     * - 꿀단지 레코드가 없는 신규 사용자는 empty() 반환
-     */
+    // 사용 현황 빌드
+    // 꿀단지 레코드가 없는 신규 사용자는 empty() 반환
     private UsageStatusResponse buildUsageStatus(User user) {
         long totalStories = storyRepository.countByUser(user);
 

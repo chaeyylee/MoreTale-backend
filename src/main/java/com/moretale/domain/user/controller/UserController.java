@@ -1,7 +1,6 @@
 package com.moretale.domain.user.controller;
 
 import com.moretale.domain.user.dto.MyPageResponse;
-import com.moretale.domain.user.dto.RegionRequest;
 import com.moretale.domain.user.dto.UserResponse;
 import com.moretale.domain.user.service.UserService;
 import com.moretale.global.common.ApiResponse;
@@ -32,23 +31,6 @@ public class UserController {
     ) {
         log.info("사용자 정보 조회 요청 - userId: {}", userPrincipal.getUserId());
         return ApiResponse.success(userService.getUserInfo(userPrincipal.getUserId()));
-    }
-
-    @Operation(
-            summary = "지역 설정",
-            description = "사용자의 지역 정보를 설정합니다."
-    )
-    @PatchMapping("/me/region")
-    public ApiResponse<UserResponse> updateRegion(
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @RequestBody RegionRequest request
-    ) {
-        log.info("사용자 지역 설정 요청 - userId: {}, region: {}",
-                userPrincipal.getUserId(), request.getRegion());
-        return ApiResponse.success(
-                userService.updateRegion(userPrincipal.getUserId(), request.getRegion()),
-                "지역이 설정되었습니다."
-        );
     }
 
     @Operation(
