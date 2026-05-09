@@ -26,6 +26,7 @@ public class QuizController {
      * 퀴즈 조회 (없으면 자동 생성)
      * GET /api/quiz?storyId={storyId}
      *
+     * - storyId는 query parameter로 전달
      * - 동화 1권당 퀴즈 1세트 자동 생성
      * - 이미 생성된 경우 기존 퀴즈 반환
      * - 응답에 correctAnswer, explanation 포함
@@ -38,6 +39,13 @@ public class QuizController {
                     동화에 연결된 퀴즈를 조회합니다.
                     퀴즈가 없으면 AI가 자동으로 생성합니다.
                     
+                    **요청 예시**
+                    - `GET /api/quiz?storyId=20`
+                    
+                    **요청 파라미터**
+                    - `storyId`: 조회할 동화 ID이며, query parameter로 전달합니다.
+                    
+                    **응답 특징**
                     - 각 문제에 `correctAnswer`와 `explanation`이 포함됩니다.
                     - 프론트에서 선택지 클릭 즉시 정답(초록) / 오답(빨강 + 정답 강조) 표시 가능
                     - 최종 채점 및 꿀단지 보상은 submit 시점에서만 처리됩니다.
@@ -54,7 +62,12 @@ public class QuizController {
     @GetMapping
     public ApiResponse<QuizResponse> getQuiz(
             @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "동화 ID")
+            @Parameter(
+                    name = "storyId",
+                    description = "조회할 동화 ID입니다. query parameter로 전달합니다. 예: /api/quiz?storyId=20",
+                    required = true,
+                    example = "20"
+            )
             @RequestParam(name = "storyId") Long storyId
     ) {
         log.info("퀴즈 조회 요청 - email={}, storyId={}", userDetails.getUsername(), storyId);
@@ -114,6 +127,9 @@ public class QuizController {
             summary = "동화 완독 처리",
             description = """
                     동화를 끝까지 읽었을 때 호출합니다.
+                    
+                    **요청 예시**
+                    - `POST /api/quiz/story-complete`
                     
                     **꿀단지 보상**
                     - 완독 시 꿀단지 +1 (동화 1권당 최초 1회)
