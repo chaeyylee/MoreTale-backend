@@ -3,6 +3,7 @@ package com.moretale.domain.story.controller;
 import com.moretale.domain.story.dto.*;
 import com.moretale.domain.story.service.StoryService;
 import com.moretale.global.common.ApiResponse;
+import com.moretale.global.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -10,7 +11,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -40,14 +40,14 @@ public class StoryController {
     )
     @GetMapping("/init")
     public ApiResponse<StoryInitResponse> getStoryInitData(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "프로필 ID (미입력 시 첫 번째 프로필 사용)")
             @RequestParam(name = "profileId", required = false) Long profileId
     ) {
-        log.info("동화 초기값 조회 요청 - email={}, profileId={}",
-                userDetails.getUsername(), profileId);
+        log.info("동화 초기값 조회 요청 - userId={}, profileId={}",
+                userPrincipal.getUserId(), profileId);
         return ApiResponse.success(
-                storyService.getStoryInitData(userDetails.getUsername(), profileId),
+                storyService.getStoryInitData(userPrincipal.getUserId(), profileId),
                 "동화 생성 초기값 조회 성공"
         );
     }
@@ -64,14 +64,14 @@ public class StoryController {
     )
     @PostMapping("/auto-generate")
     public ApiResponse<StoryGenerateResponse> autoGenerateStory(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "프로필 ID (미입력 시 첫 번째 프로필 사용)")
             @RequestParam(name = "profileId", required = false) Long profileId
     ) {
-        log.info("자동 동화 생성 요청 - email={}, profileId={}",
-                userDetails.getUsername(), profileId);
+        log.info("자동 동화 생성 요청 - userId={}, profileId={}",
+                userPrincipal.getUserId(), profileId);
         return ApiResponse.success(
-                storyService.autoGenerateStory(userDetails.getUsername(), profileId),
+                storyService.autoGenerateStory(userPrincipal.getUserId(), profileId),
                 "동화 자동 생성 완료"
         );
     }
@@ -88,13 +88,13 @@ public class StoryController {
     )
     @PostMapping("/generate")
     public ApiResponse<StoryGenerateResponse> generateStory(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody StoryGenerateRequest request
     ) {
-        log.info("동화 생성 요청 - email={}, prompt={}",
-                userDetails.getUsername(), request.getPrompt());
+        log.info("동화 생성 요청 - userId={}, prompt={}",
+                userPrincipal.getUserId(), request.getPrompt());
         return ApiResponse.success(
-                storyService.generateStory(userDetails.getUsername(), request),
+                storyService.generateStory(userPrincipal.getUserId(), request),
                 "동화 생성 완료"
         );
     }
@@ -111,13 +111,13 @@ public class StoryController {
     )
     @PostMapping
     public ApiResponse<StoryResponse> saveStory(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody StorySaveRequest request
     ) {
-        log.info("동화 저장 요청 - email={}, title={}",
-                userDetails.getUsername(), request.getTitle());
+        log.info("동화 저장 요청 - userId={}, title={}",
+                userPrincipal.getUserId(), request.getTitle());
         return ApiResponse.success(
-                storyService.saveStory(userDetails.getUsername(), request),
+                storyService.saveStory(userPrincipal.getUserId(), request),
                 "동화 저장 완료"
         );
     }
@@ -133,11 +133,11 @@ public class StoryController {
     )
     @GetMapping("/{storyId}")
     public ApiResponse<StoryResponse> getStoryDetail(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "동화 ID") @PathVariable(name = "storyId") Long storyId
     ) {
         return ApiResponse.success(
-                storyService.getStoryDetail(userDetails.getUsername(), storyId)
+                storyService.getStoryDetail(userPrincipal.getUserId(), storyId)
         );
     }
 
@@ -147,9 +147,9 @@ public class StoryController {
     )
     @GetMapping("/my")
     public ApiResponse<List<StoryListResponse>> getMyStories(
-            @AuthenticationPrincipal UserDetails userDetails
+            @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
-        return ApiResponse.success(storyService.getMyStories(userDetails.getUsername()));
+        return ApiResponse.success(storyService.getMyStories(userPrincipal.getUserId()));
     }
 
     @Operation(
@@ -173,11 +173,11 @@ public class StoryController {
     )
     @PatchMapping("/{storyId}/share")
     public ApiResponse<Void> updateStoryShareStatus(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "동화 ID") @PathVariable(name = "storyId") Long storyId,
             @Valid @RequestBody StoryShareRequest request
     ) {
-        storyService.updateStoryShareStatus(userDetails.getUsername(), storyId, request);
+        storyService.updateStoryShareStatus(userPrincipal.getUserId(), storyId, request);
         return ApiResponse.success(null, "공유 설정 변경 완료");
     }
 
@@ -193,10 +193,10 @@ public class StoryController {
     )
     @DeleteMapping("/{storyId}")
     public ApiResponse<Void> deleteStory(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "동화 ID") @PathVariable(name = "storyId") Long storyId
     ) {
-        storyService.deleteStory(userDetails.getUsername(), storyId);
+        storyService.deleteStory(userPrincipal.getUserId(), storyId);
         return ApiResponse.success(null, "동화 삭제 완료");
     }
 }

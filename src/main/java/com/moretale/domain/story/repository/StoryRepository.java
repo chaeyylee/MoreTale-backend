@@ -18,14 +18,19 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
     // 특정 사용자의 동화 목록 조회 (최신순)
     List<Story> findAllByUserOrderByCreatedAtDesc(User user);
 
-    // 특정 사용자가 만든 동화 목록 조회 (최신순 고정 - 내부 사용)
-    List<Story> findByUserOrderByCreatedAtDesc(User user);
+    // userId 기반 동화 목록 조회 (최신순) - 불필요한 User 엔티티 조회 제거
+    @Query("SELECT s FROM Story s WHERE s.user.userId = :userId ORDER BY s.createdAt DESC")
+    List<Story> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId);
 
-    // 공개된 동화 목록 조회 (최신순 고정)
+    // 공개된 동화 목록 조회 (최신순)
     List<Story> findByIsPublicTrueOrderByCreatedAtDesc();
 
     // 특정 동화 ID와 사용자로 조회 (권한 체크용)
     Optional<Story> findByStoryIdAndUser(Long storyId, User user);
+
+    // [추가] storyId + userId 기반 소유권 확인 조회 - User 엔티티 조회 불필요
+    @Query("SELECT s FROM Story s WHERE s.storyId = :storyId AND s.user.userId = :userId")
+    Optional<Story> findByStoryIdAndUserId(@Param("storyId") Long storyId, @Param("userId") Long userId);
 
     // 슬라이드 Fetch Join (상세 조회용 - MultipleBagFetchException 방지)
     @Query("""
@@ -44,7 +49,7 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
     """)
     List<Story> findRecentStoriesWithSlides(@Param("user") User user, Pageable pageable);
 
-    // 특정 사용자의 전체 동화 수 조회 / 사용자별 동화 개수
+    // 특정 사용자의 전체 동화 수 조회
     long countByUser(User user);
 
     // 특정 사용자의 모든 동화 삭제 (회원 탈퇴용)
@@ -56,9 +61,6 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
      *   최신순    → sort=createdAt,desc
      *   오래된순  → sort=createdAt,asc
      *   가나다순  → sort=title,asc
-     *
-     * 슬라이드를 LEFT JOIN FETCH로 함께 가져와 thumbnail 추출 가능
-     * COUNT 쿼리는 별도로 분리하여 성능 최적화
      */
     @Query(
             value = """
@@ -73,7 +75,7 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
     )
     Page<Story> findByUserIdWithSlides(@Param("userId") Long userId, Pageable pageable);
 
-    // 도서관 목록 조회 - 슬라이드 없이 (경량 버전, 썸네일 불필요 시)
+    // 도서관 목록 조회 - 슬라이드 없이 (경량 버전)
     @Query("""
         SELECT s FROM Story s
         WHERE s.user.userId = :userId
