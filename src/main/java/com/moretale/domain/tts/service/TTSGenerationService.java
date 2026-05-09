@@ -6,7 +6,7 @@ import com.moretale.domain.story.repository.SlideRepository;
 import com.moretale.domain.story.repository.StoryRepository;
 import com.moretale.domain.tts.dto.TTSRequest;
 import com.moretale.domain.tts.dto.TTSResponse;
-import com.moretale.global.exception.CustomException;
+import com.moretale.global.exception.BusinessException;
 import com.moretale.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,40 +33,34 @@ public class TTSGenerationService {
     // 슬라이드에 대한 TTS 자동 생성
     public void generateTTSForSlide(Long slideId, String primaryLanguage, String secondaryLanguage) {
         Slide slide = slideRepository.findById(slideId)
-                .orElseThrow(() -> new CustomException(ErrorCode.SLIDE_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.SLIDE_NOT_FOUND));
 
         try {
             // 한국어 TTS 생성
             if (slide.getTextKr() != null && !slide.getTextKr().isEmpty()) {
-                String audioUrlKr = ttsService.generateAudioUrl(
-                        slide.getTextKr(),
-                        primaryLanguage
-                );
-                slide.setAudioUrlKr(audioUrlKr);
+                slide.setAudioUrlKr(ttsService.generateAudioUrl(slide.getTextKr(), primaryLanguage));
             }
 
             // 부모 언어 TTS 생성
             if (slide.getTextNative() != null && !slide.getTextNative().isEmpty()) {
-                String audioUrlNative = ttsService.generateAudioUrl(
-                        slide.getTextNative(),
-                        secondaryLanguage
-                );
-                slide.setAudioUrlNative(audioUrlNative);
+                slide.setAudioUrlNative(ttsService.generateAudioUrl(slide.getTextNative(), secondaryLanguage));
             }
 
             slideRepository.save(slide);
             log.info("슬라이드 {} TTS 생성 완료", slideId);
 
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("슬라이드 {} TTS 생성 실패", slideId, e);
-            throw new CustomException(ErrorCode.TTS_GENERATION_FAILED);
+            throw new BusinessException(ErrorCode.TTS_GENERATION_FAILED);
         }
     }
 
     // 동화 전체 슬라이드에 대한 TTS 생성
     public void generateTTSForStory(Long storyId) {
         Story story = storyRepository.findById(storyId)
-                .orElseThrow(() -> new CustomException(ErrorCode.STORY_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORY_NOT_FOUND));
 
         List<Slide> slides = slideRepository.findByStoryIdOrderByOrder(storyId);
 
@@ -88,7 +82,7 @@ public class TTSGenerationService {
     // TTS가 없는 슬라이드만 재생성
     public void regenerateMissingTTS(Long storyId) {
         Story story = storyRepository.findById(storyId)
-                .orElseThrow(() -> new CustomException(ErrorCode.STORY_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORY_NOT_FOUND));
 
         List<Slide> slidesWithoutTTS = slideRepository.findSlidesWithoutTTS(storyId);
 
@@ -115,9 +109,9 @@ public class TTSGenerationService {
             case "en" -> "en-US";
             case "zh" -> "zh-CN";
             case "ja" -> "ja-JP";
-            case "tl" -> "fil-PH"; // 필리핀어
-            case "mn" -> "mn-MN"; // 몽골어
-            default -> "ko-KR"; // 기본값
+            case "tl" -> "fil-PH";
+            case "mn" -> "mn-MN";
+            default -> "ko-KR";
         };
     }
 }
