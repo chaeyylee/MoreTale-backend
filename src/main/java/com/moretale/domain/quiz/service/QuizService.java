@@ -36,6 +36,12 @@ import java.util.stream.Collectors;
  *  - 퀴즈 100점: submit 채점 후 자동 → +1
  *  - 20개 달성 시 → 자동 -20 (무료 생성 1회)
  *  - 동화 1권당 최대 2개 (완독 1 + 퀴즈 1) 제한
+ *
+ * email 기반 사용자 조회 → userId 기반으로 통일
+ *  - getOrGenerateQuiz(String email, ...) → getOrGenerateQuiz(Long userId, ...)
+ *  - submitQuiz(String email, ...) → submitQuiz(Long userId, ...)
+ *  - completeStory(String email, ...) → completeStory(Long userId, ...)
+ *  - getUserByEmail() 제거 → getUserById() 로 대체
  */
 @Slf4j
 @Service
@@ -55,8 +61,8 @@ public class QuizService {
     // 퀴즈 조회 (없으면 자동 생성)
     // GET /api/quiz?storyId={storyId}
     @Transactional
-    public QuizResponse getOrGenerateQuiz(String email, Long storyId) {
-        User user = getUserByEmail(email);
+    public QuizResponse getOrGenerateQuiz(Long userId, Long storyId) {
+        User user = getUserById(userId);
         Story story = getStoryWithAccess(user, storyId);
 
         // 기존 퀴즈가 있으면 바로 반환
@@ -77,8 +83,8 @@ public class QuizService {
     // 퀴즈 채점 및 꿀단지 보상
     // POST /api/quiz/submit
     @Transactional
-    public QuizResultResponse submitQuiz(String email, QuizSubmitRequest request) {
-        User user = getUserByEmail(email);
+    public QuizResultResponse submitQuiz(Long userId, QuizSubmitRequest request) {
+        User user = getUserById(userId);
 
         // 퀴즈 조회 (문제 + 보기 포함)
         Quiz quiz = quizRepository.findByIdWithQuestions(request.getQuizId())
@@ -136,7 +142,7 @@ public class QuizService {
         quizResultRepository.save(quizResult);
 
         log.info("퀴즈 채점 완료 - userId={}, quizId={}, score={}, isPerfect={}",
-                user.getUserId(), quiz.getQuizId(), score, isPerfect);
+                userId, quiz.getQuizId(), score, isPerfect);
 
         // 꿀단지 보상 처리
         QuizResultResponse.HoneyJarRewardInfo rewardInfo = processHoneyJarReward(
@@ -149,8 +155,8 @@ public class QuizService {
     // 동화 완독 처리 + 꿀단지 지급
     // POST /api/quiz/story-complete
     @Transactional
-    public QuizResultResponse.HoneyJarRewardInfo completeStory(String email, Long storyId) {
-        User user = getUserByEmail(email);
+    public QuizResultResponse.HoneyJarRewardInfo completeStory(Long userId, Long storyId) {
+        User user = getUserById(userId);
         Story story = getStoryWithAccess(user, storyId);
 
         // 완독 상태 조회 또는 생성
@@ -163,7 +169,7 @@ public class QuizService {
 
         // 이미 완독 보상을 받은 경우 중복 지급 방지
         if (Boolean.TRUE.equals(readStatus.getReadHoneyJarRewarded())) {
-            log.info("이미 완독 보상 지급됨 - userId={}, storyId={}", user.getUserId(), storyId);
+            log.info("이미 완독 보상 지급됨 - userId={}, storyId={}", userId, storyId);
 
             var honeyJar = honeyJarService.getOrCreateHoneyJar(user);
             return buildRewardInfo(0, honeyJar.getCount(), false, "이미 완독 보상을 받으셨어요! 🍯");
@@ -186,7 +192,7 @@ public class QuizService {
                 : "📖 동화를 다 읽었어요! 꿀단지 1개 획득! 🍯";
 
         log.info("동화 완독 처리 완료 - userId={}, storyId={}, 꿀단지자동차감={}",
-                user.getUserId(), storyId, autoUsed);
+                userId, storyId, autoUsed);
 
         return buildRewardInfo(1, honeyJar.getCount(), autoUsed, message);
     }
@@ -287,8 +293,8 @@ public class QuizService {
                 .build();
     }
 
-    private User getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
+    private User getUserById(Long userId) {
+        return userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
     }
 
