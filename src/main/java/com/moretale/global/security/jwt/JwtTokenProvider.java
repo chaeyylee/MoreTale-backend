@@ -4,7 +4,6 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -25,26 +24,7 @@ public class JwtTokenProvider {
         this.jwtExpirationMs = jwtExpirationMs;
     }
 
-    // JWT 토큰 생성
-    public String generateToken(Authentication authentication) {
-        String email = authentication.getName();
-        return generateTokenFromEmail(email);
-    }
-
-    // 이메일로 JWT 토큰 생성
-    public String generateTokenFromEmail(String email) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
-
-        return Jwts.builder()
-                .subject(email)
-                .issuedAt(now)
-                .expiration(expiryDate)
-                .signWith(secretKey, Jwts.SIG.HS512)
-                .compact();
-    }
-
-    // userId로 JWT 토큰 생성
+    // userId 기반 JWT 토큰 생성
     public String generateTokenFromUserId(Long userId) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
@@ -55,17 +35,6 @@ public class JwtTokenProvider {
                 .expiration(expiryDate)
                 .signWith(secretKey, Jwts.SIG.HS512)
                 .compact();
-    }
-
-    // 토큰에서 이메일 추출
-    public String getEmailFromToken(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-
-        return claims.getSubject();
     }
 
     // 토큰에서 userId 추출
