@@ -14,8 +14,13 @@ import com.moretale.domain.vocabulary.dto.request.VocabularySearchCondition;
 import com.moretale.domain.vocabulary.dto.response.VocabularyResponse;
 import com.moretale.domain.vocabulary.dto.response.VocabularyStoryResponse;
 import com.moretale.domain.vocabulary.entity.VocabularyEntry;
-import com.moretale.domain.vocabulary.exception.*;
+import com.moretale.domain.vocabulary.exception.TokenNotFoundException;
+import com.moretale.domain.vocabulary.exception.VocabularyAccessDeniedException;
+import com.moretale.domain.vocabulary.exception.VocabularyDuplicateException;
+import com.moretale.domain.vocabulary.exception.VocabularyNotFoundException;
 import com.moretale.domain.vocabulary.repository.VocabularyEntryRepository;
+import com.moretale.global.exception.BusinessException;
+import com.moretale.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -47,20 +52,23 @@ public class VocabularyService {
 
         // 1. 연관 엔티티 조회
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다. userId=" + userId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Story story = storyRepository.findById(request.getStoryId())
-                .orElseThrow(() -> new RuntimeException("동화를 찾을 수 없습니다. storyId=" + request.getStoryId()));
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORY_NOT_FOUND));
 
         Slide slide = slideRepository.findById(request.getSlideId())
-                .orElseThrow(() -> new RuntimeException("슬라이드를 찾을 수 없습니다. slideId=" + request.getSlideId()));
+                .orElseThrow(() -> new BusinessException(ErrorCode.SLIDE_NOT_FOUND));
 
         StoryToken token = storyTokenRepository.findById(request.getTokenId())
                 .orElseThrow(() -> new TokenNotFoundException(request.getTokenId()));
 
         // 2. highlight 단어인지 검증 (highlight=false인 토큰은 단어장 저장 불가)
         if (!token.getHighlight()) {
-            throw new IllegalArgumentException("하이라이트 단어만 저장할 수 있습니다. tokenId=" + request.getTokenId());
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT_VALUE,
+                    "하이라이트 단어만 저장할 수 있습니다. tokenId=" + request.getTokenId()
+            );
         }
 
         // 3. 중복 저장 방지 (같은 사용자 + 같은 동화 + 같은 정규화 단어)
@@ -86,7 +94,8 @@ public class VocabularyService {
                 .build();
 
         VocabularyEntry saved = vocabularyEntryRepository.save(entry);
-        log.info("단어장 저장 완료 - userId={}, word={}, storyId={}", userId, saved.getWord(), request.getStoryId());
+        log.info("단어장 저장 완료 - userId={}, word={}, storyId={}",
+                userId, saved.getWord(), request.getStoryId());
 
         return VocabularyResponse.from(saved);
     }
@@ -144,11 +153,8 @@ public class VocabularyService {
         Pageable safePageable = buildSafeVocabularyPageable(pageable, skipFavoriteSort);
 
         log.info("단어장 필터 조회 - userId={}, storyId={}, favorite={}, keyword={}, sort={}",
-                userId,
-                condition.getStoryId(),
-                condition.getFavorite(),
-                keywordPattern,
-                safePageable.getSort());
+                userId, condition.getStoryId(), condition.getFavorite(),
+                keywordPattern, safePageable.getSort());
 
         return vocabularyEntryRepository
                 .findWithFilters(
@@ -200,8 +206,6 @@ public class VocabularyService {
         vocabularyEntryRepository.delete(entry);
         log.info("단어장 삭제 완료 - userId={}, vocabularyId={}", userId, vocabularyId);
     }
-
-    // ── 내부 공통 메서드 ────────────────────────────────────────────────────────
 
     // 소유권 확인 후 엔티티 반환 (없으면 404, 권한 없으면 403)
     private VocabularyEntry findOwnedEntry(Long userId, Long vocabularyId) {
