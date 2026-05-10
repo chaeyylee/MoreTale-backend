@@ -24,6 +24,7 @@ import com.moretale.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -33,6 +34,9 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -119,24 +123,25 @@ public class VocabularyService {
     }
 
     /**
-     * 단어장 통합 필터 조회
+     * 단어장 통합 필터 조회 - N+1 개선 버전
      *
-     * ─ 정렬 정책 (isFavorite 우선) ──────────────────────────────────────────
-     *   buildSafeVocabularyPageable() 에서 isFavorite DESC 를 맨 앞에 고정하고
-     *   사용자가 선택한 정렬(createdAt / word)을 그 뒤에 붙인다.
+     * 기존에는 Vocabulary 조회 후 story / slide / storyToken을
+     * Lazy Loading으로 개별 조회하여 N+1 문제가 발생했다.
      *
-     *   결과 ORDER BY 예시:
-     *     최신순   →  isFavorite DESC, createdAt DESC
-     *     오래된순 →  isFavorite DESC, createdAt ASC
-     *     가나다순 →  isFavorite DESC, word ASC
-     * ─────────────────────────────────────────────────────────────────────────
+     * 이를 해결하기 위해:
+     * 1. ID만 페이징 조회
+     * 2. fetch join으로 연관 엔티티 일괄 조회
+     * 3. 원래 순서대로 재정렬 후 Page 재구성
      *
-     * 단, favorite=true 필터가 걸린 경우에는 결과가 모두 즐겨찾기이므로
-     * isFavorite DESC 선행 정렬이 의미 없어 생략한다. (불필요한 ORDER BY 제거)
+     * Pageable + fetch join 사용 시 발생하는 메모리 페이징 문제를
+     * 피하기 위해 2단계 조회 방식으로 구현하였다.
+     *
+     * 정렬은 isFavorite DESC를 우선 적용하며,
+     * 이후 createdAt 또는 word 정렬을 추가한다.
      *
      * @param userId    사용자 ID
-     * @param condition 필터 조건 (storyId, favorite, keyword)
-     * @param pageable  페이징 + 정렬
+     * @param condition 필터 조건
+     * @param pageable  페이징 및 정렬 정보
      */
     public Page<VocabularyResponse> getWithFilters(
             Long userId,
@@ -156,15 +161,36 @@ public class VocabularyService {
                 userId, condition.getStoryId(), condition.getFavorite(),
                 keywordPattern, safePageable.getSort());
 
-        return vocabularyEntryRepository
-                .findWithFilters(
-                        userId,
-                        condition.getStoryId(),
-                        condition.getFavorite(),
-                        keywordPattern,
-                        safePageable
-                )
-                .map(VocabularyResponse::from);
+        // 1단계: vocabulary_id + 총 개수만 페이징 조회
+        Page<Long> idPage = vocabularyEntryRepository.findIdsByFilters(
+                userId,
+                condition.getStoryId(),
+                condition.getFavorite(),
+                keywordPattern,
+                safePageable
+        );
+
+        List<Long> ids = idPage.getContent();
+
+        // 결과가 없으면 빈 페이지 즉시 반환
+        if (ids.isEmpty()) {
+            return idPage.map(id -> null); // 타입 맞추기용 트릭 — 아래 방식으로 대체
+        }
+
+        // 2단계: ID 목록으로 연관 엔티티 JOIN FETCH 일괄 조회
+        List<VocabularyEntry> entries = vocabularyEntryRepository.fetchByIds(ids);
+
+        // 3단계: IN 절 조회는 DB 반환 순서가 보장되지 않으므로 원래 순서로 재정렬
+        Map<Long, VocabularyEntry> entryMap = entries.stream()
+                .collect(Collectors.toMap(VocabularyEntry::getVocabularyId, Function.identity()));
+
+        List<VocabularyResponse> content = ids.stream()
+                .filter(entryMap::containsKey)       // 혹시 모를 누락 방어
+                .map(id -> VocabularyResponse.from(entryMap.get(id)))
+                .collect(Collectors.toList());
+
+        // 4단계: 1단계의 totalElements를 재사용하여 Page 재구성
+        return new PageImpl<>(content, safePageable, idPage.getTotalElements());
     }
 
     // 단어가 저장된 동화 목록 조회
@@ -221,7 +247,7 @@ public class VocabularyService {
      * 단어장 정렬 필드 화이트리스트 검증 + isFavorite DESC 선행 삽입
      *
      * ─ 정렬 규칙 ────────────────────────────────────────────────────────────
-     *   1. 허용 필드: isFavorite, createdAt, word  (그 외는 무시)
+     *   1. 허용 필드: createdAt, word  (그 외는 무시)
      *   2. skipFavoriteSort = false 인 경우 (기본):
      *        → isFavorite DESC 를 정렬 맨 앞에 고정
      *        → 이후 사용자 요청 정렬(createdAt / word)을 추가
@@ -236,9 +262,6 @@ public class VocabularyService {
      *        → isFavorite DESC 삽입 생략 (결과가 이미 전부 즐겨찾기)
      *        → 사용자 요청 정렬만 적용
      * ─────────────────────────────────────────────────────────────────────────
-     *
-     * @param pageable          원본 Pageable (Controller에서 전달)
-     * @param skipFavoriteSort  true이면 isFavorite DESC 선행 삽입 생략
      */
     private Pageable buildSafeVocabularyPageable(Pageable pageable, boolean skipFavoriteSort) {
         Sort sort = pageable.getSort();
@@ -278,20 +301,12 @@ public class VocabularyService {
         );
     }
 
-    /**
-     * skipFavoriteSort = false 로 고정하는 편의 오버로드
-     * (기존 getAll, getByStory 등에서 사용)
-     */
+    // skipFavoriteSort = false 로 고정하는 편의 오버로드
     private Pageable buildSafeVocabularyPageable(Pageable pageable) {
         return buildSafeVocabularyPageable(pageable, false);
     }
 
-    /**
-     * 사용자가 sort 파라미터로 직접 지정할 수 있는 허용 필드
-     * - createdAt : 최신순 / 오래된순
-     * - word      : 가나다순
-     * (isFavorite은 Service 내부에서 자동 삽입하므로 사용자 입력 허용 안 함)
-     */
+    // 사용자가 sort 파라미터로 직접 지정할 수 있는 허용 필드
     private boolean isAllowedVocabSortField(String field) {
         return "createdAt".equals(field) || "word".equals(field);
     }
