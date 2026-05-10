@@ -43,17 +43,14 @@ public interface VocabularyEntryRepository extends JpaRepository<VocabularyEntry
     void deleteAllByStory(Story story);
 
     /**
-     * 통합 필터 조회 — ID만 페이징 조회 (N+1 방지 핵심)
+     * 통합 필터 조회 (즐겨찾기 + 키워드 + 동화 필터 조합)
      *
-     * ─ 왜 ID만 조회하는가? ────────────────────────────────────────────────────
-     *   Pageable + fetch join 조합 시 Hibernate는 전체 결과를 메모리에 올린 후
-     *   페이징 처리(HHH90003004 경고)하여 OOM 위험이 있다.
-     *   따라서 1차 쿼리에서는 ID만 가져와 페이징을 정확히 적용하고,
-     *   2차 쿼리(fetchByIds)에서 연관 엔티티를 fetch join으로 한 번에 가져온다.
+     * ─ keyword 처리 방식 변경 ────────────────────────────────────────────────
+     *   기존: LIKE CONCAT('%', :keyword, '%') — PostgreSQL + Hibernate 6 조합에서
+     *         keyword=null 시 파라미터 타입을 bytea로 추론하여 타입 오류 발생
      *
-     * ─ keyword 처리 방식 ──────────────────────────────────────────────────────
-     *   :keywordPattern 으로 받고, Service에서 null → null, 값 → "%값%" 변환
-     *   IS NULL 분기와 LIKE 절의 파라미터를 분리하여 타입 충돌 방지
+     *   변경: :keywordPattern 으로 받고, Service에서 null → null, 값 → "%값%" 변환
+     *         IS NULL 분기와 LIKE 절의 파라미터를 분리하여 타입 충돌 방지
      * ─────────────────────────────────────────────────────────────────────────
      *
      * @param userId         사용자 ID (필수)
@@ -62,51 +59,22 @@ public interface VocabularyEntryRepository extends JpaRepository<VocabularyEntry
      * @param keywordPattern LIKE 패턴 문자열 (null이면 전체, 값이면 "%keyword%")
      * @param pageable       페이징 + 정렬 (isFavorite DESC가 선행 적용된 Pageable)
      */
-    @Query(
-            value = """
-            SELECT v.vocabularyId FROM VocabularyEntry v
-            WHERE v.user.userId = :userId
-              AND (:storyId IS NULL OR v.story.storyId = :storyId)
-              AND (:favorite IS NULL OR v.isFavorite = :favorite)
-              AND (:keywordPattern IS NULL
-                    OR v.word LIKE :keywordPattern
-                    OR v.translation LIKE :keywordPattern)
-            """,
-            countQuery = """
-            SELECT COUNT(v) FROM VocabularyEntry v
-            WHERE v.user.userId = :userId
-              AND (:storyId IS NULL OR v.story.storyId = :storyId)
-              AND (:favorite IS NULL OR v.isFavorite = :favorite)
-              AND (:keywordPattern IS NULL
-                    OR v.word LIKE :keywordPattern
-                    OR v.translation LIKE :keywordPattern)
-            """
-    )
-    Page<Long> findIdsByFilters(
+    @Query("""
+    SELECT v FROM VocabularyEntry v
+    WHERE v.user.userId = :userId
+      AND (:storyId IS NULL OR v.story.storyId = :storyId)
+      AND (:favorite IS NULL OR v.isFavorite = :favorite)
+      AND (:keywordPattern IS NULL
+            OR v.word LIKE :keywordPattern
+            OR v.translation LIKE :keywordPattern)
+""")
+    Page<VocabularyEntry> findWithFilters(
             @Param("userId") Long userId,
             @Param("storyId") Long storyId,
             @Param("favorite") Boolean favorite,
             @Param("keywordPattern") String keywordPattern,
             Pageable pageable
     );
-
-    /**
-     * ID 목록으로 VocabularyEntry + 연관 엔티티 일괄 fetch join 조회
-     *
-     * story / slide / storyToken 을 JOIN FETCH 하여
-     * VocabularyResponse.from() 내 Lazy Loading이 발생하지 않도록 한다.
-     *
-     * ※ 순서 보장: IN 절 조회는 DB 반환 순서가 보장되지 않으므로
-     *   Service 레이어에서 원래 ID 순서대로 재정렬한다.
-     */
-    @Query("""
-        SELECT v FROM VocabularyEntry v
-        JOIN FETCH v.story
-        JOIN FETCH v.slide
-        JOIN FETCH v.storyToken
-        WHERE v.vocabularyId IN :ids
-        """)
-    List<VocabularyEntry> fetchByIds(@Param("ids") List<Long> ids);
 
     // 즐겨찾기 단어 전체 조회 (페이징)
     Page<VocabularyEntry> findByUser_UserIdAndIsFavoriteTrue(Long userId, Pageable pageable);
