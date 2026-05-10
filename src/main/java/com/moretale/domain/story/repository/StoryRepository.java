@@ -56,26 +56,48 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
     void deleteAllByUser(User user);
 
     /**
-     * 도서관 목록 조회 - Pageable 정렬 파라미터 지원
-     * 프론트 정렬 UI 매핑:
-     *   최신순    → sort=createdAt,desc
-     *   오래된순  → sort=createdAt,asc
-     *   가나다순  → sort=title,asc
+     * 도서관 목록 조회 1단계 - story_id만 페이징 조회 (N+1 + 메모리 페이징 방지 핵심)
+     *
+     * ─ 기존 문제 ──────────────────────────────────────────────────────────────
+     *   findByUserIdWithSlides(): LEFT JOIN FETCH s.slides + Pageable 조합
+     *   → Hibernate가 전체 결과를 메모리에 올린 후 페이징 (HHH90003004 경고)
+     *   → OOM 위험 + 불필요한 대량 데이터 로딩
+     *
+     * ─ 해결 방법 ──────────────────────────────────────────────────────────────
+     *   1차 쿼리(findIdsByUserId): story_id만 OFFSET/LIMIT으로 정확히 페이징
+     *   2차 쿼리(fetchByIdsWithSlides): IN 절로 slides까지 JOIN FETCH 일괄 조회
+     *
+     * ─ countQuery 분리 이유 ───────────────────────────────────────────────────
+     *   fetch join 없이 COUNT만 하면 불필요한 JOIN 제거 → 성능 향상
+     * ─────────────────────────────────────────────────────────────────────────
      */
     @Query(
             value = """
-                SELECT DISTINCT s FROM Story s
-                LEFT JOIN FETCH s.slides sl
-                WHERE s.user.userId = :userId
+            SELECT s.storyId FROM Story s
+            WHERE s.user.userId = :userId
             """,
             countQuery = """
-                SELECT COUNT(s) FROM Story s
-                WHERE s.user.userId = :userId
+            SELECT COUNT(s) FROM Story s
+            WHERE s.user.userId = :userId
             """
     )
-    Page<Story> findByUserIdWithSlides(@Param("userId") Long userId, Pageable pageable);
+    Page<Long> findIdsByUserId(@Param("userId") Long userId, Pageable pageable);
 
-    // 도서관 목록 조회 - 슬라이드 없이 (경량 버전)
+    /**
+     * 도서관 목록 조회 2단계 - ID 목록으로 slides까지 JOIN FETCH 일괄 조회
+     *
+     * ─ IN 절 크기 = 한 페이지 크기(기본 20)이므로 성능 문제 없음
+     * ─ DISTINCT: story - slide 1:N 조인으로 중복 story 행이 생길 수 있으므로 필수
+     * ─ 순서 보장: IN 절은 DB 반환 순서 미보장 → Service에서 원래 ID 순서대로 재정렬
+     */
+    @Query("""
+        SELECT DISTINCT s FROM Story s
+        LEFT JOIN FETCH s.slides sl
+        WHERE s.storyId IN :ids
+    """)
+    List<Story> fetchByIdsWithSlides(@Param("ids") List<Long> ids);
+
+    // 도서관 목록 조회 - 슬라이드 없이 (경량 버전, 필요 시 사용)
     @Query("""
         SELECT s FROM Story s
         WHERE s.user.userId = :userId
@@ -88,4 +110,26 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
         WHERE s.isPublic = true
     """)
     Page<Story> findPublicStories(Pageable pageable);
+
+    /**
+     * 기존 메서드 - 사용하지 않지만 하위 호환을 위해 유지
+     *
+     * 주의: Pageable + fetch join 조합으로 메모리 페이징 발생 (HHH90003004)
+     * 도서관 목록 조회에는 findIdsByUserId + fetchByIdsWithSlides 방식 사용 권장
+     *
+     * @deprecated LibraryService.getLibrary()에서 더 이상 사용하지 않음
+     */
+    @Deprecated
+    @Query(
+            value = """
+            SELECT DISTINCT s FROM Story s
+            LEFT JOIN FETCH s.slides sl
+            WHERE s.user.userId = :userId
+            """,
+            countQuery = """
+            SELECT COUNT(s) FROM Story s
+            WHERE s.user.userId = :userId
+            """
+    )
+    Page<Story> findByUserIdWithSlides(@Param("userId") Long userId, Pageable pageable);
 }
