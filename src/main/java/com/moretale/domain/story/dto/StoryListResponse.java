@@ -2,11 +2,7 @@ package com.moretale.domain.story.dto;
 
 import com.moretale.domain.story.entity.Story;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -24,16 +20,34 @@ public class StoryListResponse {
     @Schema(description = "동화 제목", example = "흥부와 놀부")
     private String title;
 
-    @Schema(description = "썸네일 이미지 URL (첫 번째 슬라이드)", example = "https://storage.example.com/images/slide1.png")
+    @Schema(
+            description = "썸네일 이미지 URL (첫 번째 슬라이드 기준, 슬라이드가 없으면 null 가능)",
+            nullable = true,
+            example = "https://storage.example.com/images/slide1.png"
+    )
     private String thumbnail;
 
     @Schema(description = "주인공 아이 이름", example = "민준")
     private String childName;
 
-    @Schema(description = "제1언어 코드", example = "KO")
+    @Schema(
+            description = """
+                    [Legacy] 제1언어 ISO 코드 (ex. ko, vi, en).
+                    OTHER인 경우 사용자 입력 custom 문자열이 저장될 수 있음.
+                    향후 firstLanguage / firstLanguageDisplay / primaryLanguageCode 필드로 분리 예정.
+                    """,
+            example = "ko"
+    )
     private String primaryLanguage;
 
-    @Schema(description = "제2언어 코드", example = "VI")
+    @Schema(
+            description = """
+                    [Legacy] 제2언어 ISO 코드 (ex. vi, en, ja).
+                    OTHER인 경우 사용자 입력 custom 문자열이 저장될 수 있음.
+                    향후 secondLanguage / secondLanguageDisplay / secondaryLanguageCode 필드로 분리 예정.
+                    """,
+            example = "vi"
+    )
     private String secondaryLanguage;
 
     @Schema(description = "공개 여부", example = "false")

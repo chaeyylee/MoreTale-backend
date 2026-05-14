@@ -2,11 +2,7 @@ package com.moretale.domain.story.dto;
 
 import com.moretale.domain.story.entity.Story;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,10 +28,42 @@ public class StoryResponse {
     @Schema(description = "주인공 아이 이름", example = "민준")
     private String childName;
 
-    @Schema(description = "제1언어 코드", example = "KO")
+    /**
+     * ISO 코드 기반 언어 값 (ex. "ko", "vi", "en")
+     * Profile.firstLanguage(Enum)의 isoCode를 저장한 값.
+     * OTHER 언어인 경우 사용자가 입력한 custom 문자열이 저장될 수 있음.
+     *
+     * Story 계층 언어 구조 통합 완료 후
+     * firstLanguage / firstLanguageDisplay / primaryLanguageCode 로 분리 예정.
+     */
+    @Schema(
+            description = """
+                    [Legacy] 제1언어 ISO 코드 (ex. ko, vi, en).
+                    Profile.firstLanguage Enum의 isoCode 기반 저장값.
+                    OTHER인 경우 사용자 입력 custom 문자열이 저장될 수 있음.
+                    향후 firstLanguage / firstLanguageDisplay / primaryLanguageCode 필드로 분리 예정.
+                    """,
+            example = "ko"
+    )
     private String primaryLanguage;
 
-    @Schema(description = "제2언어 코드", example = "VI")
+    /**
+     * ISO 코드 기반 언어 값 (ex. "vi", "en", "ja")
+     * Profile.secondLanguage(Enum)의 isoCode를 저장한 값.
+     * OTHER 언어인 경우 사용자가 입력한 custom 문자열이 저장될 수 있음.
+     *
+     * Story 계층 언어 구조 통합 완료 후
+     * secondLanguage / secondLanguageDisplay / secondaryLanguageCode 로 분리 예정.
+     */
+    @Schema(
+            description = """
+                    [Legacy] 제2언어 ISO 코드 (ex. vi, en, ja).
+                    Profile.secondLanguage Enum의 isoCode 기반 저장값.
+                    OTHER인 경우 사용자 입력 custom 문자열이 저장될 수 있음.
+                    향후 secondLanguage / secondLanguageDisplay / secondaryLanguageCode 필드로 분리 예정.
+                    """,
+            example = "en"
+    )
     private String secondaryLanguage;
 
     @Schema(description = "공개 여부", example = "false")
