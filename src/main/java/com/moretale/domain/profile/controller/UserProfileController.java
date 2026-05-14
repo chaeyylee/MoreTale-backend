@@ -6,6 +6,9 @@ import com.moretale.global.common.ApiResponse;
 import com.moretale.global.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +46,7 @@ public class UserProfileController {
     @PostMapping("/onboarding")
     public ApiResponse<OnboardingProfileResponse> createOnboardingProfile(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @Valid @RequestBody OnboardingProfileRequest request
+            @Valid @org.springframework.web.bind.annotation.RequestBody OnboardingProfileRequest request
     ) {
         log.info("온보딩 프로필 생성 요청 - userId: {}", userPrincipal.getUserId());
         return ApiResponse.success(
@@ -64,7 +67,7 @@ public class UserProfileController {
     @PostMapping
     public ApiResponse<UserProfileResponse> createProfile(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @Valid @RequestBody UserProfileRequest request
+            @Valid @org.springframework.web.bind.annotation.RequestBody UserProfileRequest request
     ) {
         log.info("프로필 생성 요청 - userId: {}", userPrincipal.getUserId());
         return ApiResponse.success(
@@ -113,7 +116,7 @@ public class UserProfileController {
     @PutMapping("/{profileId}")
     public ApiResponse<UserProfileResponse> updateProfile(
             @Parameter(description = "프로필 ID") @PathVariable("profileId") Long profileId,
-            @Valid @RequestBody UserProfileRequest request,
+            @Valid @org.springframework.web.bind.annotation.RequestBody UserProfileRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         log.info("프로필 수정 요청 - userId: {}, profileId: {}",
@@ -131,13 +134,44 @@ public class UserProfileController {
 
                     - firstLanguage / secondLanguage Enum 값 변경
                     - OTHER 선택 시 customFirstLanguage / customSecondLanguage 필수
-                    """
+                    - 일반 언어(KO, EN, JA, ZH, ES, VI) 선택 시 custom 값은 null 사용
+                    """,
+            requestBody = @RequestBody(
+                    required = true,
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "일반 언어 예시",
+                                            value = """
+                                                    {
+                                                      "firstLanguage": "KO",
+                                                      "customFirstLanguage": null,
+                                                      "secondLanguage": "VI",
+                                                      "customSecondLanguage": null
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "OTHER 언어 예시",
+                                            value = """
+                                                    {
+                                                      "firstLanguage": "KO",
+                                                      "customFirstLanguage": null,
+                                                      "secondLanguage": "OTHER",
+                                                      "customSecondLanguage": "태국어"
+                                                    }
+                                                    """
+                                    )
+                            }
+                    )
+            )
     )
     @PatchMapping("/{profileId}/language")
     public ApiResponse<UserProfileResponse> updateLanguage(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "프로필 ID") @PathVariable("profileId") Long profileId,
-            @Valid @RequestBody LanguageUpdateRequest request
+            @Valid @org.springframework.web.bind.annotation.RequestBody LanguageUpdateRequest request
     ) {
         log.info("언어 설정 수정 요청 - userId: {}, profileId: {}",
                 userPrincipal.getUserId(), profileId);

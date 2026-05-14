@@ -2,10 +2,7 @@ package com.moretale.domain.story.dto;
 
 import com.moretale.domain.story.entity.Story;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -26,18 +23,32 @@ public class RecentStoryResponse {
     private String childName;
 
     @Schema(
-            description = "제1언어 코드 또는 표시값 (예: ko, en, ja, 태국어)",
+            description = """
+                    [Legacy] 제1언어 ISO 코드 (ex. ko, vi, en).
+                    Story 저장 시 Profile.firstLanguage Enum의 isoCode를 기반으로 저장된 값.
+                    OTHER인 경우 사용자 입력 custom 문자열이 저장되어 있을 수 있음.
+                    향후 firstLanguage / firstLanguageDisplay / primaryLanguageCode 필드로 분리 예정.
+                    """,
             example = "ko"
     )
     private String primaryLanguage;
 
     @Schema(
-            description = "제2언어 코드 또는 표시값 (예: en, vi, ja, 힌디어)",
-            example = "en"
+            description = """
+                    [Legacy] 제2언어 ISO 코드 (ex. vi, en, ja).
+                    Story 저장 시 Profile.secondLanguage Enum의 isoCode를 기반으로 저장된 값.
+                    OTHER인 경우 사용자 입력 custom 문자열이 저장되어 있을 수 있음.
+                    향후 secondLanguage / secondLanguageDisplay / secondaryLanguageCode 필드로 분리 예정.
+                    """,
+            example = "vi"
     )
     private String secondaryLanguage;
 
-    @Schema(description = "썸네일 이미지 URL (첫 번째 슬라이드)", example = "https://storage.example.com/images/slide1.png")
+    @Schema(
+            description = "썸네일 이미지 URL (첫 번째 슬라이드 기준, 슬라이드가 없으면 null 가능)",
+            nullable = true,
+            example = "https://storage.example.com/images/slide1.png"
+    )
     private String thumbnailUrl;
 
     @Schema(description = "공개 여부", example = "false")

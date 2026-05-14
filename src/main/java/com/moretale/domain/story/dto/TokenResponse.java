@@ -1,12 +1,14 @@
 package com.moretale.domain.story.dto;
 
 import com.moretale.domain.story.entity.StoryToken;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Schema(description = "동화 단어 토큰 응답 DTO")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -14,28 +16,44 @@ import lombok.Setter;
 @Builder
 public class TokenResponse {
 
-    // 토큰 고정 ID (단어 저장 시 사용될 식별자)
+    @Schema(description = "토큰 고유 ID (단어 저장 시 사용될 식별자)", example = "242")
     private Long id;
 
-    // 원문 단어 텍스트 (정규화된 형태, 예: "사자")
+    @Schema(description = "원문 단어 텍스트 (정규화된 형태)", example = "사자")
     private String text;
 
-    // 하이라이트 여부
+    @Schema(description = "하이라이트 여부", example = "true")
     private Boolean highlight;
 
-    // 번역어 (highlight=true인 경우에만 존재)
+    @Schema(
+            description = "번역어 (highlight=true인 경우에만 반환, highlight=false이면 null)",
+            nullable = true,
+            example = "lion"
+    )
     private String translation;
 
-    // 뜻 설명 (highlight=true인 경우에만 존재)
+    @Schema(
+            description = "뜻 설명 (highlight=true인 경우에만 반환, highlight=false이면 null)",
+            nullable = true,
+            example = "사자에 대한 설명입니다."
+    )
     private String definition;
 
-    // 단어 발음 오디오 URL (highlight=true인 경우에만 존재)
+    @Schema(
+            description = "단어 발음 오디오 URL (highlight=true인 경우에만 반환, highlight=false이면 null)",
+            nullable = true,
+            example = "https://storage.moretale.ai/tts/token-ko-KR.mp3"
+    )
     private String audioUrl;
 
-    // 원문 언어 코드 (예: "ko")
+    @Schema(description = "원문 언어 ISO 코드", example = "ko")
     private String sourceLanguage;
 
-    // 번역 언어 코드 (예: "ja", "vi" 등 / highlight=true인 경우에만 존재)
+    @Schema(
+            description = "번역 언어 ISO 코드 (highlight=true인 경우에만 반환, highlight=false이면 null)",
+            nullable = true,
+            example = "en"
+    )
     private String targetLanguage;
 
     /**

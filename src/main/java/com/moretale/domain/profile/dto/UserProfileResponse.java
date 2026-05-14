@@ -44,7 +44,10 @@ public class UserProfileResponse {
     @Schema(description = "첫 번째 언어 Enum", example = "KO")
     private Language firstLanguage;
 
-    @Schema(description = "첫 번째 언어 직접 입력값 (OTHER 시)", example = "태국어")
+    @Schema(
+            description = "첫 번째 언어 직접 입력값 (OTHER 선택 시에만 반환, 일반 언어 선택 시 null)",
+            nullable = true
+    )
     private String customFirstLanguage;
 
     @Schema(description = "첫 번째 언어 표시명", example = "한국어")
@@ -53,7 +56,10 @@ public class UserProfileResponse {
     @Schema(description = "두 번째 언어 Enum", example = "VI")
     private Language secondLanguage;
 
-    @Schema(description = "두 번째 언어 직접 입력값 (OTHER 시)", example = "힌디어")
+    @Schema(
+            description = "두 번째 언어 직접 입력값 (OTHER 선택 시에만 반환, 일반 언어 선택 시 null)",
+            nullable = true
+    )
     private String customSecondLanguage;
 
     @Schema(description = "두 번째 언어 표시명", example = "베트남어")
@@ -80,13 +86,19 @@ public class UserProfileResponse {
     @Schema(description = "가족 구조", example = "TWO_PARENTS")
     private FamilyStructure familyStructure;
 
-    @Schema(description = "가족 구조 직접 입력값 (CUSTOM 시)", example = "조부모님과 살아요")
+    @Schema(
+            description = "가족 구조 직접 입력값 (CUSTOM 선택 시에만 반환, 일반 선택 시 null)",
+            nullable = true
+    )
     private String customFamilyStructure;
 
     @Schema(description = "이야기 선호도", example = "FUN_ADVENTURE")
     private StoryPreference storyPreference;
 
-    @Schema(description = "이야기 선호도 직접 입력값 (CUSTOM 시)", example = "우주 탐험 이야기")
+    @Schema(
+            description = "이야기 선호도 직접 입력값 (CUSTOM 선택 시에만 반환, 일반 선택 시 null)",
+            nullable = true
+    )
     private String customStoryPreference;
 
     @Schema(description = "아이 국적", example = "KR")

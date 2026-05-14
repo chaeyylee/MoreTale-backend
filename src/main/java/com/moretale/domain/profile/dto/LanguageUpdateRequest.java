@@ -21,19 +21,31 @@ import lombok.*;
 public class LanguageUpdateRequest {
 
     @NotNull(message = "첫 번째 언어는 필수입니다.")
-    @Schema(description = "첫 번째 언어 (KO/EN/JA/ZH/ES/VI/OTHER)", example = "KO")
+    @Schema(
+            description = "첫 번째 언어 (KO/EN/JA/ZH/ES/VI/OTHER)",
+            example = "KO"
+    )
     private Language firstLanguage;
 
     @Size(max = 100, message = "직접 입력 언어명은 100자 이하여야 합니다.")
-    @Schema(description = "첫 번째 언어 직접 입력 (OTHER 선택 시 필수)", example = "태국어")
+    @Schema(
+            description = "첫 번째 언어 직접 입력 (OTHER 선택 시 필수, 일반 언어 선택 시 null)",
+            nullable = true
+    )
     private String customFirstLanguage;
 
     @NotNull(message = "두 번째 언어는 필수입니다.")
-    @Schema(description = "두 번째 언어 (KO/EN/JA/ZH/ES/VI/OTHER)", example = "VI")
+    @Schema(
+            description = "두 번째 언어 (KO/EN/JA/ZH/ES/VI/OTHER)",
+            example = "VI"
+    )
     private Language secondLanguage;
 
     @Size(max = 100, message = "직접 입력 언어명은 100자 이하여야 합니다.")
-    @Schema(description = "두 번째 언어 직접 입력 (OTHER 선택 시 필수)", example = "힌디어")
+    @Schema(
+            description = "두 번째 언어 직접 입력 (OTHER 선택 시 필수, 일반 언어 선택 시 null)",
+            nullable = true
+    )
     private String customSecondLanguage;
 
     // OTHER 선택 시 custom 값 검증

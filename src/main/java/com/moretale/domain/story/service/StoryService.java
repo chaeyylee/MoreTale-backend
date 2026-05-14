@@ -4,6 +4,7 @@ import com.moretale.domain.profile.entity.Language;
 import com.moretale.domain.profile.entity.StoryPreference;
 import com.moretale.domain.profile.entity.UserProfile;
 import com.moretale.domain.profile.repository.UserProfileRepository;
+import com.moretale.domain.profile.util.LanguageLocaleMapper;
 import com.moretale.domain.story.dto.StoryGenerateRequest;
 import com.moretale.domain.story.dto.StoryGenerateResponse;
 import com.moretale.domain.story.dto.StoryInitResponse;
@@ -167,22 +168,24 @@ public class StoryService {
                 request
         );
 
-        // TTS 생성
+        // TTS locale 생성 로직 개선
+        String primaryLocale = LanguageLocaleMapper.resolvePrimaryTtsLocale(profile);
+        String secondaryLocale = LanguageLocaleMapper.resolveSecondaryTtsLocale(profile);
         response.getSlides().forEach(slide -> {
             try {
-                if (slide.getTextKr() != null) {
+                if (slide.getTextKr() != null && primaryLocale != null) {
                     slide.setAudioUrlKr(
-                            ttsService.generateTTS(slide.getTextKr(), primaryLang + "-KR")
+                            ttsService.generateTTS(slide.getTextKr(), primaryLocale)
                     );
+                } else if (slide.getTextKr() != null) {
+                    log.info("첫 번째 언어 TTS 미지원 - slideOrder={}", slide.getOrder());
                 }
 
-                if (slide.getTextNative() != null) {
+                if (slide.getTextNative() != null && secondaryLocale != null) {
                     slide.setAudioUrlNative(
-                            ttsService.generateTTS(
-                                    slide.getTextNative(),
-                                    secondaryLang + "-" + secondaryLang.toUpperCase()
-                            )
-                    );
+                            ttsService.generateTTS(slide.getTextNative(), secondaryLocale)                    );
+                } else if (slide.getTextNative() != null) {
+                    log.info("두 번째 언어 TTS 미지원 - slideOrder={}", slide.getOrder());
                 }
             } catch (Exception e) {
                 log.error("TTS 생성 중 오류 발생 (건너뜀) - slideOrder={}",
@@ -317,7 +320,7 @@ public class StoryService {
         storyRepository.delete(story);
     }
 
-    // userId로 사용자 조회 (email 기반 조회 제거)
+    // userId로 사용자 조회
     private User getUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));

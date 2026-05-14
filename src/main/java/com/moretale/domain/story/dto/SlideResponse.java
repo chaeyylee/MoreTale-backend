@@ -37,10 +37,14 @@ public class SlideResponse {
     @Schema(description = "한국어 음성 URL", example = "https://storage.example.com/audio/slide1_kr.mp3")
     private String audioUrlKr;
 
-    @Schema(description = "제2언어 음성 URL", example = "https://storage.example.com/audio/slide1_vi.mp3")
+    @Schema(
+            description = "제2언어 음성 URL (TTS 미지원 언어 또는 OTHER 언어인 경우 null 가능)",
+            nullable = true,
+            example = "https://storage.example.com/audio/slide1_vi.mp3"
+    )
     private String audioUrlNative;
 
-    @Schema(description = "단어 토큰 목록 (하이라이트 단어)")
+    @Schema(description = "단어 토큰 목록 (하이라이트 단어 포함)")
     private List<TokenResponse> tokens;
 
     public static SlideResponse from(Slide slide) {
