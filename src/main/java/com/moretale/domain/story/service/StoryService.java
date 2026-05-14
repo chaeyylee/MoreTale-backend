@@ -15,14 +15,13 @@ import com.moretale.domain.story.entity.Slide;
 import com.moretale.domain.story.entity.Story;
 import com.moretale.domain.story.entity.StoryToken;
 import com.moretale.domain.story.enums.TraditionalTale;
-import com.moretale.domain.story.repository.SlideRepository;
 import com.moretale.domain.story.repository.StoryRepository;
-import com.moretale.domain.story.repository.StoryTokenRepository;
 import com.moretale.domain.story.util.PromptBuilder;
 import com.moretale.domain.user.entity.User;
 import com.moretale.domain.user.repository.UserRepository;
 import com.moretale.global.exception.BusinessException;
 import com.moretale.global.exception.ErrorCode;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,13 +37,12 @@ import java.util.stream.Collectors;
 public class StoryService {
 
     private final StoryRepository storyRepository;
-    private final SlideRepository slideRepository;
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final AIStoryService aiStoryService;
     private final TTSService ttsService;
     private final StoryTokenService storyTokenService;
-    private final StoryTokenRepository storyTokenRepository;
+    private final EntityManager em;
 
     // 온보딩 데이터 기반 동화 생성 초기값 조회
     // GET /api/stories/init
@@ -206,7 +204,7 @@ public class StoryService {
         UserProfile profile = userProfileRepository.findById(request.getProfileId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_NOT_FOUND));
 
-        // [수정] 엔티티 equals() 비교 제거 → userId 기반 비교
+        // 엔티티 equals() 비교 제거 → userId 기반 비교
         if (!profile.getUser().getUserId().equals(userId)) {
             log.warn("보안 위반 시도 - 요청 userId={}가 userId={}의 프로필 {}을 사용하려고 함",
                     userId, profile.getUser().getUserId(), profile.getProfileId());
@@ -241,7 +239,9 @@ public class StoryService {
 
         // Story + Slide 먼저 저장 (slide_id 획득 필요)
         Story savedStory = storyRepository.save(story);
-        slideRepository.saveAll(savedStory.getSlides());
+
+        // 1차 flush: Story + Slide INSERT 실행, slideId 확보
+        em.flush();
 
         String sourceLanguage = resolvePrimaryLanguage(profile);
         String targetLanguage = resolveSecondaryLanguage(profile);
@@ -252,11 +252,13 @@ public class StoryService {
                         slide, sourceLanguage, targetLanguage
                 );
                 tokens.forEach(slide::addToken);
-                storyTokenRepository.saveAll(tokens);
             } catch (Exception e) {
                 log.error("토큰 생성 실패 (건너뜀) - slideId={}", slide.getSlideId(), e);
             }
         });
+
+        // 2차 flush: StoryToken INSERT 실행, tokenId 확보
+        em.flush();
 
         log.info("동화 저장 완료 - storyId={}, userId={}",
                 savedStory.getStoryId(), userId);
@@ -269,7 +271,7 @@ public class StoryService {
         Story story = storyRepository.findByIdWithSlides(storyId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORY_NOT_FOUND));
 
-        // [수정] story.getUser().equals(user) → userId 기반 비교
+        // story.getUser().equals(user) → userId 기반 비교
         boolean isOwner = story.getUser().getUserId().equals(userId);
         if (!isOwner && !story.getIsPublic()) {
             throw new BusinessException(ErrorCode.STORY_ACCESS_DENIED);
@@ -280,7 +282,7 @@ public class StoryService {
 
     // 내 동화 목록 조회
     public List<StoryListResponse> getMyStories(Long userId) {
-        // [수정] User 엔티티 조회 없이 userId 기반 Repository 쿼리 직접 사용
+        // User 엔티티 조회 없이 userId 기반 Repository 쿼리 직접 사용
         return storyRepository.findByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
                 .map(StoryListResponse::from)
@@ -298,7 +300,7 @@ public class StoryService {
     // 동화 공유 설정 변경
     @Transactional
     public void updateStoryShareStatus(Long userId, Long storyId, StoryShareRequest request) {
-        // [수정] User 엔티티 조회 없이 userId + storyId 기반으로 직접 조회
+        // User 엔티티 조회 없이 userId + storyId 기반으로 직접 조회
         Story story = storyRepository.findByStoryIdAndUserId(storyId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORY_NOT_FOUND));
 
@@ -308,7 +310,7 @@ public class StoryService {
     // 동화 삭제
     @Transactional
     public void deleteStory(Long userId, Long storyId) {
-        // [수정] User 엔티티 조회 없이 userId + storyId 기반으로 직접 조회
+        // User 엔티티 조회 없이 userId + storyId 기반으로 직접 조회
         Story story = storyRepository.findByStoryIdAndUserId(storyId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORY_NOT_FOUND));
 
