@@ -1,0 +1,22 @@
+# =============================================
+# 운영 환경 전용 오버라이드 (Render / GCP / Docker)
+# 민감값은 없고 환경변수 참조만 사용
+# =============================================
+
+spring:
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    root: warn
+    com.moretale: info
+    org.hibernate.SQL: warn
+    org.hibernate.orm.jdbc.bind: warn
