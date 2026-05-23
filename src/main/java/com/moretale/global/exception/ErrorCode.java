@@ -31,6 +31,8 @@ public enum ErrorCode {
     STORY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "S002", "동화에 접근할 권한이 없습니다."),
     STORY_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "S003", "동화 생성에 실패했습니다."),
     STORY_SAVE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "S004", "동화 저장에 실패했습니다."),
+    STORY_GENERATION_JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "S005", "동화 생성 작업을 찾을 수 없습니다."),
+    STORY_GENERATION_NOT_READY(HttpStatus.CONFLICT, "S006", "동화 생성 결과가 아직 준비되지 않았습니다."),
 
     // 슬라이드 (Slide)
     SLIDE_NOT_FOUND(HttpStatus.NOT_FOUND, "SL001", "슬라이드를 찾을 수 없습니다."),

@@ -20,8 +20,18 @@ public class MoreTaleProperties {
     @Getter
     @Setter
     public static class Ai {
+        private String baseUrl;
+        private String apiKey;
+        private String callbackBaseUrl;
         private String storyGenerationUrl;
         private String imageGenerationUrl;
+
+        public String resolveBaseUrl() {
+            if (baseUrl != null && !baseUrl.isBlank()) {
+                return baseUrl;
+            }
+            return storyGenerationUrl;
+        }
     }
 
     // 텍스트 음성 변환(TTS) 서비스 설정

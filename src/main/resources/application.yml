@@ -73,6 +73,9 @@ tts:
 # MoreTale AI 서비스 연동 설정
 moretale:
   ai:
+    base-url: ${MORETALE_AI_BASE_URL:${STORY_GENERATION_URL:http://localhost:8081}}
+    api-key: ${MORETALE_AI_API_KEY:}
+    callback-base-url: ${MORETALE_BACKEND_PUBLIC_BASE_URL:http://localhost:${server.port}}
     story-generation-url: ${STORY_GENERATION_URL:http://localhost:8081}
     image-generation-url: ${IMAGE_GENERATION_URL:http://localhost:8082}
   tts:

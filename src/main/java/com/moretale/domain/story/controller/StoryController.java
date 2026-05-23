@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -55,48 +57,75 @@ public class StoryController {
     @Operation(
             summary = "자동 동화 생성",
             description = """
-                    온보딩 데이터를 기반으로 추천 전래동화를 자동 생성합니다.
+                    온보딩 데이터를 기반으로 추천 전래동화 생성 작업을 시작합니다.
 
                     - 프로필의 storyPreference에 맞는 전래동화 자동 선택
-                    - 별도 프롬프트 입력 없이 온보딩 정보만으로 생성
-                    - 생성 후 `/api/stories` (POST)로 저장 필요
+                    - AI 서버에 비동기 story job을 등록하고 202 Accepted를 반환
+                    - `data.statusUrl`로 상태를 조회하고, 완료 후 `data.resultUrl`에서 결과 조회
+                    - 결과 조회 후 `/api/stories` (POST)로 저장 필요
                     """
     )
     @PostMapping("/auto-generate")
-    public ApiResponse<StoryGenerateResponse> autoGenerateStory(
+    public ResponseEntity<ApiResponse<StoryGenerationJobResponse>> autoGenerateStory(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "프로필 ID (미입력 시 첫 번째 프로필 사용)")
             @RequestParam(name = "profileId", required = false) Long profileId
     ) {
         log.info("자동 동화 생성 요청 - userId={}, profileId={}",
                 userPrincipal.getUserId(), profileId);
-        return ApiResponse.success(
-                storyService.autoGenerateStory(userPrincipal.getUserId(), profileId),
-                "동화 자동 생성 완료"
-        );
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.success(
+                storyService.enqueueAutoStoryGeneration(userPrincipal.getUserId(), profileId),
+                "동화 자동 생성 작업이 시작되었습니다."
+        ));
     }
 
     @Operation(
             summary = "동화 생성",
             description = """
-                    사용자 프롬프트를 기반으로 이중언어 동화를 생성합니다.
+                    사용자 프롬프트를 기반으로 이중언어 동화 생성 작업을 시작합니다.
 
-                    - 생성된 동화는 임시 상태이며, `/api/stories` (POST)로 저장해야 합니다.
+                    - AI 서버에 비동기 story job을 등록하고 202 Accepted를 반환
+                    - 완료 결과에는 텍스트, 이미지 URL, 양쪽 언어 TTS URL이 포함됩니다.
+                    - 생성 결과는 임시 상태이며, `/api/stories` (POST)로 저장해야 합니다.
                     - primaryLanguage / secondaryLanguage 언어쌍으로 이중언어 슬라이드 생성
                     - ageGroup, proficiency 기반으로 난이도 자동 조정
                     """
     )
     @PostMapping("/generate")
-    public ApiResponse<StoryGenerateResponse> generateStory(
+    public ResponseEntity<ApiResponse<StoryGenerationJobResponse>> generateStory(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody StoryGenerateRequest request
     ) {
         log.info("동화 생성 요청 - userId={}, prompt={}",
                 userPrincipal.getUserId(), request.getPrompt());
-        return ApiResponse.success(
-                storyService.generateStory(userPrincipal.getUserId(), request),
-                "동화 생성 완료"
-        );
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.success(
+                storyService.enqueueStoryGeneration(userPrincipal.getUserId(), request),
+                "동화 생성 작업이 시작되었습니다."
+        ));
+    }
+
+    @Operation(
+            summary = "동화 생성 작업 상태 조회",
+            description = "AI 서버의 비동기 동화 생성 작업 상태를 조회합니다."
+    )
+    @GetMapping("/generation-jobs/{jobId}")
+    public ApiResponse<StoryGenerationJobResponse> getGenerationJob(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable(name = "jobId") String jobId
+    ) {
+        return ApiResponse.success(storyService.getGenerationJob(jobId));
+    }
+
+    @Operation(
+            summary = "동화 생성 작업 결과 조회",
+            description = "완료된 AI 동화 생성 결과를 조회합니다. 아직 완료되지 않은 경우 409를 반환합니다."
+    )
+    @GetMapping("/generation-jobs/{jobId}/result")
+    public ApiResponse<StoryGenerateResponse> getGenerationJobResult(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable(name = "jobId") String jobId
+    ) {
+        return ApiResponse.success(storyService.getGenerationJobResult(jobId));
     }
 
     @Operation(
@@ -104,7 +133,7 @@ public class StoryController {
             description = """
                     생성된 동화를 데이터베이스에 저장합니다.
 
-                    - `/api/stories/generate` 또는 `/api/stories/auto-generate` 응답값을 그대로 사용
+                    - `/api/stories/generation-jobs/{jobId}/result` 응답값을 사용
                     - 슬라이드 순서(order)는 0부터 시작
                     - 저장 시 단어 토큰(StoryToken) 자동 분석 및 연결
                     """

@@ -51,7 +51,11 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
 
                                 // Spring Boot 기본 에러 페이지
-                                "/error"
+                                "/error",
+
+                                // AI internal callback
+                                "/internal/ai/story/callbacks",
+                                "/internal/ai/story/callbacks/**"
                         ).permitAll()
 
                         // 생성된 오디오 파일 접근 (공개 동화 재생 등)
