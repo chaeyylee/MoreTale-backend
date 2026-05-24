@@ -40,8 +40,6 @@ public class SecurityConfig {
                         // 로그인 없이 접근 가능
                         .requestMatchers(
                                 "/", "/login",
-                                "/index.html", "/login.html",
-                                "/css/**", "/js/**", "/images/**",
                                 "/oauth2/**", "/login/oauth2/**",
 
                                 // Swagger / OpenAPI
