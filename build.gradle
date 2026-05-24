@@ -23,6 +23,7 @@ dependencies {
 
     // Database
     runtimeOnly 'org.postgresql:postgresql'
+    implementation 'com.google.cloud.sql:postgres-socket-factory:1.21.0'
 
     // Google Cloud Services (Storage & TTS)
     implementation 'com.google.cloud:google-cloud-storage:2.36.1'
