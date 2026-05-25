@@ -5,6 +5,9 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
+import java.util.List;
+
 // 프로젝트 전역 설정 프로퍼티 클래스
 @Configuration
 @ConfigurationProperties(prefix = "moretale")
@@ -15,6 +18,7 @@ public class MoreTaleProperties {
     private Ai ai = new Ai(); // AI 관련 설정 (동화/이미지 생성)
     private Tts tts = new Tts(); // TTS 관련 설정 (음성 변환 API)
     private Quiz quiz = new Quiz(); // 퀴즈 관련 설정 (자동 생성 API)
+    private Cors cors = new Cors(); // 프론트엔드 CORS 허용 origin 설정
 
     // AI 생성 모델 관련 API 주소 설정
     @Getter
@@ -46,5 +50,12 @@ public class MoreTaleProperties {
     @Setter
     public static class Quiz {
         private String autoGenerationUrl;
+    }
+
+    // 프론트엔드 CORS 허용 origin 설정
+    @Getter
+    @Setter
+    public static class Cors {
+        private List<String> allowedOrigins = new ArrayList<>();
     }
 }
