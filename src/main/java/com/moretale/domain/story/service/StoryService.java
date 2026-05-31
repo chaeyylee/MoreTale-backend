@@ -25,6 +25,8 @@ import com.moretale.global.exception.ErrorCode;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,10 +64,47 @@ public class StoryService {
             recommendedTale = TraditionalTale.findByPreference(profile.getStoryPreference());
         }
 
-        log.info("동화 초기값 조회 - userId={}, profileId={}, 추천 전래동화={}",
-                userId, profile.getProfileId(), recommendedTale.getTitle());
+        // recommendedTaleTitle과 일치하는 동화 기준으로 storyId + coverImageUrl 조회
+        //
+        // init API는 온보딩 추천 전래동화 기반이므로
+        // storyId / coverImageUrl도 recommendedTaleTitle과 같은 동화여야 의미가 맞음
+        //
+        // [1차] profileId + title 기반 정확 조회
+        // [2차] profile_id = NULL 기존 데이터 fallback (userId + title 기반)
+        Pageable latestOne = PageRequest.of(0, 1);
+        String recommendedTitle = recommendedTale.getTitle();
 
-        return StoryInitResponse.from(profile, recommendedTale.getTitle());
+        List<Long> storyIds = storyRepository.findLatestStoryIdByProfileAndTitle(
+                userId, profile.getProfileId(), recommendedTitle, latestOne
+        );
+
+        if (storyIds.isEmpty()) {
+            storyIds = storyRepository.findLatestStoryIdByUserAndTitle(
+                    userId, recommendedTitle, latestOne
+            );
+        }
+
+        Long resolvedStoryId = null;
+        String coverImageUrl = null;
+
+        if (!storyIds.isEmpty()) {
+            resolvedStoryId = storyIds.get(0);
+
+            List<Story> stories = storyRepository.fetchByIdsWithSlides(storyIds);
+            if (!stories.isEmpty() && !stories.get(0).getSlides().isEmpty()) {
+                coverImageUrl = stories.get(0).getSlides().get(0).getImageUrl();
+            }
+        }
+
+        log.info("동화 초기값 조회 - userId={}, profileId={}, 추천 전래동화={}, storyId={}",
+                userId, profile.getProfileId(), recommendedTitle, resolvedStoryId);
+
+        return StoryInitResponse.from(
+                profile,
+                recommendedTitle,
+                resolvedStoryId,
+                coverImageUrl
+        );
     }
 
     // 비동기 동화 생성 작업 등록
@@ -139,6 +178,7 @@ public class StoryService {
                 .title(request.getTitle())
                 .prompt(request.getPrompt())
                 .user(user)
+                .profileId(request.getProfileId())
                 .childName(profile.getChildName())
                 .primaryLanguage(resolvePrimaryLanguage(profile))
                 .secondaryLanguage(resolveSecondaryLanguage(profile))

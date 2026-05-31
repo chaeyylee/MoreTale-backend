@@ -112,11 +112,46 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
     Page<Story> findPublicStories(Pageable pageable);
 
     /**
+     * /api/stories/init 용 - recommendedTaleTitle 기준 조회
+     *
+     * profileId + title 기반으로 추천 전래동화와 일치하는 가장 최근 storyId 1건 조회
+     * - profile_id 컬럼 추가 이후 저장된 데이터 대상
+     * - 결과 없으면 Service에서 userId + title 기반 fallback 호출
+     */
+    @Query("""
+        SELECT s.storyId FROM Story s
+        WHERE s.user.userId = :userId
+          AND s.profileId = :profileId
+          AND s.title = :title
+        ORDER BY s.createdAt DESC
+    """)
+    List<Long> findLatestStoryIdByProfileAndTitle(
+            @Param("userId") Long userId,
+            @Param("profileId") Long profileId,
+            @Param("title") String title,
+            Pageable pageable
+    );
+
+    /**
+     * /api/stories/init 용 — fallback (profile_id = NULL 기존 데이터 대응)
+     *
+     * userId + title 기반으로 추천 전래동화와 일치하는 가장 최근 storyId 1건 조회
+     * findLatestStoryIdByProfileAndTitle() 결과가 비어있을 때만 호출
+     */
+    @Query("""
+        SELECT s.storyId FROM Story s
+        WHERE s.user.userId = :userId
+          AND s.title = :title
+        ORDER BY s.createdAt DESC
+    """)
+    List<Long> findLatestStoryIdByUserAndTitle(
+            @Param("userId") Long userId,
+            @Param("title") String title,
+            Pageable pageable
+    );
+
+    /**
      * 기존 메서드 - 사용하지 않지만 하위 호환을 위해 유지
-     *
-     * 주의: Pageable + fetch join 조합으로 메모리 페이징 발생 (HHH90003004)
-     * 도서관 목록 조회에는 findIdsByUserId + fetchByIdsWithSlides 방식 사용 권장
-     *
      * @deprecated LibraryService.getLibrary()에서 더 이상 사용하지 않음
      */
     @Deprecated
