@@ -38,6 +38,8 @@ public class StoryController {
                     - ageGroup / childAge : 연령 그룹
                     - storyPreference : 이야기 선호도
                     - recommendedTaleTitle : 추천 전래동화 제목
+                    - storyId : 추천 전래동화와 일치하는 가장 최근 생성 동화 ID (없으면 null)
+                    - coverImageUrl : 추천 전래동화와 일치하는 가장 최근 생성 동화의 표지 이미지 URL (없으면 null)
                     """
     )
     @GetMapping("/init")
