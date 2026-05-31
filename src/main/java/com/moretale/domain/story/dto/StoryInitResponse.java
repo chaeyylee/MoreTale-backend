@@ -76,11 +76,49 @@ public class StoryInitResponse {
     @Schema(description = "추천 전래동화 제목", example = "흥부와 놀부")
     private String recommendedTaleTitle;
 
+    /**
+     * 추천 전래동화와 일치하는 가장 최근 생성된 동화 ID
+     *
+     * - recommendedTaleTitle과 같은 title을 가진 동화 중 가장 최근 것
+     * - profile_id 컬럼 추가 이전 데이터는 userId + title 기반 fallback으로 조회
+     * - 해당 추천 동화를 아직 생성한 적이 없으면 null
+     */
+    @Schema(
+            description = "추천 전래동화와 일치하는 가장 최근 생성된 동화 ID (없으면 null)",
+            nullable = true,
+            example = "42"
+    )
+    private Long storyId;
+
+    /**
+     * 추천 전래동화와 일치하는 가장 최근 생성된 동화의 표지 이미지 URL
+     *
+     * - recommendedTaleTitle과 같은 title을 가진 동화 기준
+     * - 첫 번째 슬라이드(order=0)의 imageUrl 기준
+     * - 해당 추천 동화를 아직 생성한 적이 없거나 슬라이드가 없으면 null
+     */
+    @Schema(
+            description = "추천 전래동화와 일치하는 가장 최근 생성된 동화의 표지 이미지 URL (첫 번째 슬라이드 기준, 없으면 null)",
+            nullable = true,
+            example = "https://storage.example.com/images/slide1.png"
+    )
+    private String coverImageUrl;
+
+    // 기존 from() - 하위 호환 유지 (storyId, coverImageUrl = null)
     public static StoryInitResponse from(UserProfile profile, String recommendedTale) {
+        return from(profile, recommendedTale, null, null);
+    }
+
+    // storyId, coverImageUrl 포함
+    public static StoryInitResponse from(
+            UserProfile profile,
+            String recommendedTale,
+            Long storyId,
+            String coverImageUrl
+    ) {
         return StoryInitResponse.builder()
                 .profileId(profile.getProfileId())
                 .childName(profile.getChildName())
-                // display 값임을 명확히 하기 위해 필드명 변경
                 .firstLanguageDisplay(profile.getFirstLanguageDisplay())
                 .secondLanguageDisplay(profile.getSecondLanguageDisplay())
                 .ageGroup(profile.getAgeGroup())
@@ -96,6 +134,8 @@ public class StoryInitResponse {
                 .familyStructure(profile.getFamilyStructure())
                 .customFamilyStructure(profile.getCustomFamilyStructure())
                 .recommendedTaleTitle(recommendedTale)
+                .storyId(storyId)
+                .coverImageUrl(coverImageUrl)
                 .build();
     }
 }

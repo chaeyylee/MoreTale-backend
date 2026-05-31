@@ -56,6 +56,9 @@ public class Story {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Column(name = "profile_id")
+    private Long profileId;
+
     @Column(name = "child_name", length = 100)
     private String childName;
 
