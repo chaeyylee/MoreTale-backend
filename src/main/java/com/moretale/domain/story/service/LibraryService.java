@@ -3,9 +3,6 @@ package com.moretale.domain.story.service;
 import com.moretale.domain.story.dto.StoryLibraryCardResponse;
 import com.moretale.domain.story.entity.Story;
 import com.moretale.domain.story.repository.StoryRepository;
-import com.moretale.domain.user.entity.User;
-import com.moretale.domain.user.repository.UserRepository;
-import com.moretale.domain.vocabulary.repository.VocabularyEntryRepository;
 import com.moretale.global.exception.BusinessException;
 import com.moretale.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -25,9 +22,8 @@ import java.util.stream.Collectors;
 
 /**
  * 도서관 전용 서비스
- * - 도서관 = 사용자가 생성한 동화 자체를 관리하는 영역
- * - 삭제 = 동화 자체 삭제 (숨김 아님)
- * - 삭제 시 Story → Slide → StoryToken → VocabularyEntry 순으로 연쇄 삭제 로직 포함
+ * - vocabulary_entries는 @OnDelete(CASCADE)로 DB 레벨에서 자동 삭제되므로
+ *   별도 vocabularyEntryRepository.deleteAllByStory() 호출 불필요
  */
 @Slf4j
 @Service
@@ -36,8 +32,6 @@ import java.util.stream.Collectors;
 public class LibraryService {
 
     private final StoryRepository storyRepository;
-    private final UserRepository userRepository;
-    private final VocabularyEntryRepository vocabularyEntryRepository;
 
     /**
      * 도서관 목록 조회 (페이징 + 정렬) — N+1 및 메모리 페이징 개선 버전
@@ -88,7 +82,7 @@ public class LibraryService {
                 .collect(Collectors.toMap(Story::getStoryId, Function.identity()));
 
         List<StoryLibraryCardResponse> content = ids.stream()
-                .filter(storyMap::containsKey)          // 혹시 모를 누락 방어
+                .filter(storyMap::containsKey)
                 .map(id -> StoryLibraryCardResponse.from(storyMap.get(id)))
                 .collect(Collectors.toList());
 
@@ -98,35 +92,24 @@ public class LibraryService {
 
     /**
      * 도서관에서 동화 삭제
-     * - Story 삭제 시 외래 키 제약 조건(VocabularyEntry 참조)을 해결하기 위해 자식 데이터를 먼저 삭제합니다.
-     *
-     * @param userId  인증된 사용자 ID
-     * @param storyId 삭제할 동화 ID
+     * - vocabulary_entries: @OnDelete(CASCADE)로 DB 레벨 자동 삭제
+     * - slides, story_tokens: JPA CascadeType.ALL + orphanRemoval로 자동 삭제
      */
     @Transactional
     public void deleteFromLibrary(Long userId, Long storyId) {
         Story story = storyRepository.findByStoryIdAndUserId(storyId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORY_NOT_FOUND));
 
-        // 외래 키 제약 조건 위반 방지를 위해 관련 단어장 데이터를 먼저 삭제
-        vocabularyEntryRepository.deleteAllByStory(story);
-
-        // 동화 삭제 (JPA Cascade에 의해 Slide, StoryToken이 함께 삭제됨)
         storyRepository.delete(story);
 
-        log.info("도서관 동화 및 관련 단어장 데이터 완전 삭제 완료 - userId={}, storyId={}, title={}",
+        log.info("도서관 동화 삭제 완료 - userId={}, storyId={}, title={}",
                 userId, storyId, story.getTitle());
     }
 
-    /**
-     * 정렬 필드 화이트리스트 검증
-     * - 허용 필드: createdAt, title
-     * - 허용되지 않은 필드 → 기본값(createdAt DESC)으로 대체하여 SQL Injection 방지
-     */
     private Pageable buildSafePageable(Pageable pageable) {
         Sort sort = pageable.getSort();
 
-        // Sort가 없거나 비어있으면 기본값 적용 [cite: 265]
+        // Sort가 없거나 비어있으면 기본값 적용
         if (sort.isUnsorted()) {
             return PageRequest.of(
                     pageable.getPageNumber(),
@@ -135,7 +118,7 @@ public class LibraryService {
             );
         }
 
-        // 허용 필드 외 정렬 필드 제거 후 재구성 [cite: 266, 267]
+        // 허용 필드 외 정렬 필드 제거 후 재구성
         Sort safeSort = Sort.by(
                 sort.stream()
                         .filter(order -> isAllowedSortField(order.getProperty()))
@@ -145,7 +128,7 @@ public class LibraryService {
                         .toList()
         );
 
-        // 모든 정렬 필드가 거부된 경우 기본값 사용 [cite: 268, 269]
+        // 모든 정렬 필드가 거부된 경우 기본값 사용
         if (safeSort.isUnsorted()) {
             safeSort = Sort.by(Sort.Direction.DESC, "createdAt");
         }
@@ -155,10 +138,5 @@ public class LibraryService {
 
     private boolean isAllowedSortField(String field) {
         return "createdAt".equals(field) || "title".equals(field);
-    }
-
-    private User getUserById(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
     }
 }

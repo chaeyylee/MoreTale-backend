@@ -113,15 +113,12 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
 
     /**
      * /api/stories/init 용 - recommendedTaleTitle 기준 조회
-     *
-     * profileId + title 기반으로 추천 전래동화와 일치하는 가장 최근 storyId 1건 조회
-     * - profile_id 컬럼 추가 이후 저장된 데이터 대상
-     * - 결과 없으면 Service에서 userId + title 기반 fallback 호출
+     * profile 객체의 profileId로 조회 (s.profileId → s.profile.profileId)
      */
     @Query("""
         SELECT s.storyId FROM Story s
         WHERE s.user.userId = :userId
-          AND s.profileId = :profileId
+          AND s.profile.profileId = :profileId
           AND s.title = :title
         ORDER BY s.createdAt DESC
     """)

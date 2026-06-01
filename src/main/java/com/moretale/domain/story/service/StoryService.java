@@ -178,7 +178,7 @@ public class StoryService {
                 .title(request.getTitle())
                 .prompt(request.getPrompt())
                 .user(user)
-                .profileId(request.getProfileId())
+                .profile(profile)
                 .childName(profile.getChildName())
                 .primaryLanguage(resolvePrimaryLanguage(profile))
                 .secondaryLanguage(resolveSecondaryLanguage(profile))
