@@ -1,9 +1,12 @@
 package com.moretale.domain.story.entity;
 
+import com.moretale.domain.profile.entity.UserProfile;
 import com.moretale.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -56,8 +59,11 @@ public class Story {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "profile_id")
-    private Long profileId;
+    // profile 삭제 시 연관된 story도 함께 삭제
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "profile_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private UserProfile profile;
 
     @Column(name = "child_name", length = 100)
     private String childName;
