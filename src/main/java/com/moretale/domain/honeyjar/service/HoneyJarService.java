@@ -38,8 +38,7 @@ public class HoneyJarService {
     private final HoneyJarHistoryRepository honeyJarHistoryRepository;
     private final UserRepository userRepository;
 
-    private static final int FREE_GENERATION_THRESHOLD = 20;
-
+    private static final int FREE_GENERATION_THRESHOLD = 10;
 
     // 꿀단지 현황 조회
     @Transactional
@@ -54,7 +53,6 @@ public class HoneyJarService {
         User user = getUserById(userId);
         return getHoneyJarHistory(user);
     }
-
 
     //  꿀단지 현황 조회
     // 최초 조회 시 레코드가 없으면 생성
@@ -74,7 +72,7 @@ public class HoneyJarService {
     }
 
     /**
-     * 꿀단지 지급 및 20개 달성 시 자동 차감 처리
+     * 꿀단지 지급 및 10개 달성 시 자동 차감 처리
      *
      * @param user    사용자 엔티티
      * @param action  지급 사유
@@ -97,7 +95,7 @@ public class HoneyJarService {
         log.info("꿀단지 지급 완료 - userId={}, action={}, 현재 잔액={}",
                 user.getUserId(), action, honeyJar.getCount());
 
-        // 20개 달성 시 자동 차감
+        // 10개 달성 시 자동 차감
         if (honeyJar.canGenerateFree()) {
             boolean used = honeyJar.use(FREE_GENERATION_THRESHOLD);
 
@@ -113,7 +111,7 @@ public class HoneyJarService {
                         storyId
                 );
 
-                log.info("꿀단지 20개 달성 및 자동 차감 완료 - userId={}, 남은 잔액={}",
+                log.info("꿀단지 10개 달성 및 자동 차감 완료 - userId={}, 남은 잔액={}",
                         user.getUserId(), honeyJar.getCount());
 
                 return true;

@@ -33,7 +33,7 @@ public class HoneyJarController {
                     
                     **응답 정보**
                     - `count`: 현재 보유 꿀단지 수
-                    - `canGenerateFree`: 동화 무료 생성 가능 여부 (20개 이상)
+                    - `canGenerateFree`: 동화 무료 생성 가능 여부 (10개 이상)
                     - `remainingForFree`: 무료 생성까지 남은 꿀단지 수
                     """
     )

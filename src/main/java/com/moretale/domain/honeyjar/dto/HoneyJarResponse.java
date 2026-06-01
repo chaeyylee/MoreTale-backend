@@ -20,13 +20,13 @@ public class HoneyJarResponse {
     @Schema(description = "누적 사용 꿀단지 수", example = "5")
     private Integer totalUsed;
 
-    @Schema(description = "동화 무료 생성 가능 여부 (20개 이상 보유 시 true)", example = "false")
+    @Schema(description = "동화 무료 생성 가능 여부 (10개 이상 보유 시 true)", example = "false")
     private Boolean canGenerateFree;
 
-    @Schema(description = "무료 생성까지 남은 꿀단지 수", example = "13")
+    @Schema(description = "무료 생성까지 남은 꿀단지 수", example = "3")
     private Integer remainingForFree;
 
-    private static final int FREE_GENERATION_THRESHOLD = 20;
+    private static final int FREE_GENERATION_THRESHOLD = 10;
 
     public static HoneyJarResponse from(HoneyJar honeyJar) {
         int remaining = Math.max(0, FREE_GENERATION_THRESHOLD - honeyJar.getCount());
