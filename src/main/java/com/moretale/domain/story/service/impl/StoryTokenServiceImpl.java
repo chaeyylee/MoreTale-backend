@@ -6,13 +6,19 @@ import com.moretale.domain.story.entity.Slide;
 import com.moretale.domain.story.entity.StoryToken;
 import com.moretale.domain.story.service.AITokenService;
 import com.moretale.domain.story.service.StoryTokenService;
-import com.moretale.domain.story.service.TTSService;
 import com.moretale.domain.story.service.TokenizationService;
+import com.moretale.domain.tts.service.TTSService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,6 +32,8 @@ public class StoryTokenServiceImpl implements StoryTokenService {
 
     // 슬라이드당 최대 하이라이트 단어 수
     private static final int MAX_HIGHLIGHT_COUNT = 3;
+    private static final String TOKEN_SOURCE_LANGUAGE = "ko";
+    private static final String TOKEN_TTS_LANGUAGE = "ko-KR";
 
     @Override
     public List<StoryToken> generateTokensForSlide(
@@ -61,15 +69,18 @@ public class StoryTokenServiceImpl implements StoryTokenService {
             List<TokenEnrichRequest> enrichRequests = highlightWords.stream()
                     .map(word -> TokenEnrichRequest.builder()
                             .word(word)
-                            .context(text) // 문맥 제공
+                            .context(text)
                             .build())
                     .collect(Collectors.toList());
 
             try {
                 List<TokenEnrichResponse> enrichResponses = aiTokenService.enrichTokens(
-                        enrichRequests, sourceLanguage, targetLanguage
+                        enrichRequests,
+                        TOKEN_SOURCE_LANGUAGE,
+                        targetLanguage
                 );
-                enrichResponses.forEach(r -> enrichMap.put(r.getWord(), r));
+
+                enrichResponses.forEach(response -> enrichMap.put(response.getWord(), response));
             } catch (Exception e) {
                 log.error("토큰 enrichment 실패 - slideId={}", slide.getSlideId(), e);
                 // enrichment 실패 시 하이라이트는 유지하되 번역/definition 없이 진행
@@ -79,15 +90,14 @@ public class StoryTokenServiceImpl implements StoryTokenService {
         // 5. StoryToken 목록 생성
         List<StoryToken> result = new ArrayList<>();
         for (int i = 0; i < rawTokens.size(); i++) {
-            String raw = rawTokens.get(i);
             String normalized = normalizedTokens.get(i);
             boolean isHighlight = highlightSet.contains(normalized);
 
             StoryToken.StoryTokenBuilder builder = StoryToken.builder()
-                    .text(normalized)     // 정규화된 형태 저장
+                    .text(normalized)
                     .tokenOrder(i)
                     .highlight(isHighlight)
-                    .sourceLanguage(sourceLanguage);
+                    .sourceLanguage(TOKEN_SOURCE_LANGUAGE);
 
             if (isHighlight) {
                 TokenEnrichResponse enrich = enrichMap.get(normalized);
@@ -99,9 +109,9 @@ public class StoryTokenServiceImpl implements StoryTokenService {
 
                     // 6. 하이라이트 단어 TTS 생성
                     try {
-                        String audioUrl = ttsService.generateTTS(
+                        String audioUrl = ttsService.generateAudioUrl(
                                 normalized,
-                                sourceLanguage + "-KR"
+                                TOKEN_TTS_LANGUAGE
                         );
                         builder.audioUrl(audioUrl);
                     } catch (Exception e) {

@@ -40,9 +40,9 @@ public class TokenResponse {
     private String definition;
 
     @Schema(
-            description = "단어 발음 오디오 URL (highlight=true인 경우에만 반환, highlight=false이면 null)",
+            description = "단어 발음 오디오 URL (highlight=true인 경우에만 반환, highlight=false이면 null, wav 형식)",
             nullable = true,
-            example = "https://storage.moretale.ai/tts/token-ko-KR.mp3"
+            example = "https://storage.googleapis.com/moretale-ai-generated-project-640335ef-3b09-441e-a26/tts/audio/tts_ko-KR_12345678_abcd1234.wav"
     )
     private String audioUrl;
 

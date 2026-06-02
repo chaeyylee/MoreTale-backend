@@ -63,7 +63,7 @@ public class GoogleTTSServiceImpl implements TTSService {
                         .build();
 
                 AudioConfig audioConfig = AudioConfig.newBuilder()
-                        .setAudioEncoding(AudioEncoding.MP3)
+                        .setAudioEncoding(AudioEncoding.LINEAR16)
                         .setSpeakingRate(1.0)
                         .setPitch(0.0)
                         .build();
@@ -104,7 +104,7 @@ public class GoogleTTSServiceImpl implements TTSService {
     private String generateFileName(String language) {
         String timestamp = String.valueOf(System.currentTimeMillis());
         String uuid = UUID.randomUUID().toString().substring(0, 8);
-        return String.format("tts_%s_%s_%s.mp3", language, timestamp, uuid);
+        return String.format("tts_%s_%s_%s.wav", language, timestamp, uuid);
     }
 
     private String saveAudioFile(byte[] audioData, String fileName) throws IOException {

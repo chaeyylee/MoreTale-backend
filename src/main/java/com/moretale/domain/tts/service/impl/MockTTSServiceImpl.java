@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
-// Mock TTS 서비스 (개발/테스트용, Google Cloud TTS 없이 더미 오디오 생성)
 @Slf4j
 @Service
 @Primary
@@ -58,7 +57,7 @@ public class MockTTSServiceImpl implements TTSService {
                     .build();
 
         } catch (BusinessException e) {
-            throw e; // 검증 에러는 그대로 던짐
+            throw e;
         } catch (Exception e) {
             log.error("[Mock TTS] 생성 실패", e);
             throw new BusinessException(ErrorCode.TTS_GENERATION_FAILED);
@@ -84,6 +83,6 @@ public class MockTTSServiceImpl implements TTSService {
     private String generateFileName(String language) {
         String timestamp = String.valueOf(System.currentTimeMillis());
         String uuid = UUID.randomUUID().toString().substring(0, 8);
-        return String.format("tts_%s_%s_%s.mp3", language, timestamp, uuid);
+        return String.format("tts_%s_%s_%s.wav", language, timestamp, uuid);
     }
 }

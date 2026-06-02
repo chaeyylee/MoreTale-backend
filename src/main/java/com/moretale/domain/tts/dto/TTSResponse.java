@@ -15,7 +15,10 @@ import lombok.Setter;
 @Builder
 public class TTSResponse {
 
-    @Schema(description = "생성된 오디오 파일 URL", example = "https://storage.example.com/audio/tts_ko-KR_123.mp3")
+    @Schema(
+            description = "생성된 오디오 파일 URL (wav 형식)",
+            example = "https://storage.googleapis.com/moretale-ai-generated-project-640335ef-3b09-441e-a26/tts/audio/tts_ko-KR_12345678_abcd1234.wav"
+    )
     private String audioUrl;
 
     @Schema(description = "적용된 TTS locale 코드", example = "ko-KR")
