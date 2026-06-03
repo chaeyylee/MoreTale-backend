@@ -1,5 +1,7 @@
 package com.moretale.domain.story.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moretale.domain.story.dto.StoryGenerateRequest;
 import com.moretale.domain.story.dto.StoryGenerateResponse;
 import com.moretale.domain.story.dto.StoryGenerationJobResponse;
@@ -24,6 +26,7 @@ public class AIStoryServiceImpl implements AIStoryService {
 
     private final MoreTaleProperties properties;
     private final RestClient.Builder restClientBuilder;
+    private final ObjectMapper objectMapper;
 
     @Override
     public StoryGenerationJobResponse enqueueStoryJob(
@@ -58,6 +61,7 @@ public class AIStoryServiceImpl implements AIStoryService {
                     .body(payload)
                     .retrieve()
                     .body(StoryGenerationJobResponse.class);
+
             return toBackendJobResponse(aiResponse);
         } catch (RestClientException e) {
             log.error("AI story job 생성 요청 실패", e);
@@ -72,6 +76,7 @@ public class AIStoryServiceImpl implements AIStoryService {
                     .uri("/internal/ai/jobs/{jobId}", jobId)
                     .retrieve()
                     .body(StoryGenerationJobResponse.class);
+
             return toBackendJobResponse(aiResponse);
         } catch (RestClientResponseException e) {
             throw mapAiResponseException(e, "AI story job 상태 조회 실패 - jobId=" + jobId);
@@ -84,16 +89,31 @@ public class AIStoryServiceImpl implements AIStoryService {
     @Override
     public StoryGenerateResponse getStoryJobResult(String jobId) {
         try {
-            AiStoryResultEnvelope result = aiClient().get()
+            String rawResponse = aiClient().get()
                     .uri("/internal/ai/story/jobs/{jobId}/result", jobId)
                     .retrieve()
-                    .body(AiStoryResultEnvelope.class);
+                    .body(String.class);
+
+            log.info("[AIStoryService] AI 원본 결과 응답 - jobId={}, rawResponse={}",
+                    jobId, rawResponse);
+
+            AiStoryResultEnvelope result = objectMapper.readValue(
+                    rawResponse,
+                    AiStoryResultEnvelope.class
+            );
+
             if (result == null || result.data == null) {
                 throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID);
             }
+
+            logAiVocabularySummary(jobId, result.data);
+
             return result.data;
         } catch (RestClientResponseException e) {
             throw mapAiResponseException(e, "AI story job 결과 조회 실패 - jobId=" + jobId);
+        } catch (JsonProcessingException e) {
+            log.error("AI story job 결과 JSON 파싱 실패 - jobId={}", jobId, e);
+            throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID);
         } catch (RestClientException e) {
             log.error("AI story job 결과 조회 실패 - jobId={}", jobId, e);
             throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
@@ -103,9 +123,11 @@ public class AIStoryServiceImpl implements AIStoryService {
     private RestClient aiClient() {
         MoreTaleProperties.Ai ai = properties.getAi();
         RestClient.Builder builder = restClientBuilder.baseUrl(ai.resolveBaseUrl());
+
         if (ai.getApiKey() != null && !ai.getApiKey().isBlank()) {
             builder.defaultHeader("X-API-Key", ai.getApiKey());
         }
+
         return builder.build();
     }
 
@@ -119,7 +141,9 @@ public class AIStoryServiceImpl implements AIStoryService {
         if (aiResponse == null || aiResponse.getJobId() == null) {
             throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID);
         }
+
         String jobId = aiResponse.getJobId();
+
         return StoryGenerationJobResponse.builder()
                 .jobId(jobId)
                 .status(aiResponse.getStatus())
@@ -129,17 +153,39 @@ public class AIStoryServiceImpl implements AIStoryService {
                 .build();
     }
 
+    private void logAiVocabularySummary(String jobId, StoryGenerateResponse response) {
+        if (response.getSlides() == null) {
+            log.info("[AIStoryService] AI 결과 vocabulary 확인 - jobId={}, slides=null", jobId);
+            return;
+        }
+
+        response.getSlides().forEach(slide -> {
+            int vocabularySize = slide.getVocabulary() != null
+                    ? slide.getVocabulary().size()
+                    : 0;
+
+            log.info("[AIStoryService] AI 결과 slide vocabulary 확인 - jobId={}, order={}, vocabularyNull={}, vocabularySize={}",
+                    jobId,
+                    slide.getOrder(),
+                    slide.getVocabulary() == null,
+                    vocabularySize);
+        });
+    }
+
     private BusinessException mapAiResponseException(
             RestClientResponseException e,
             String logMessage
     ) {
         log.error("{} - status={}", logMessage, e.getStatusCode(), e);
+
         if (e.getStatusCode().value() == 404) {
             return new BusinessException(ErrorCode.STORY_GENERATION_JOB_NOT_FOUND);
         }
+
         if (e.getStatusCode().value() == 409) {
             return new BusinessException(ErrorCode.STORY_GENERATION_NOT_READY);
         }
+
         return new BusinessException(ErrorCode.AI_SERVICE_ERROR);
     }
 
