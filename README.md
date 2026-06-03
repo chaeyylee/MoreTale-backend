@@ -367,7 +367,8 @@ MoreTale-backend
 │   │       │   ├── V2_add_onboarding_profile_fields.sql
 │   │       │   ├── V2_language_enum_migration.sql
 │   │       │   ├── V3_update_enum_values.sql
-│   │       │   └── V4_create_story_token_table.sql
+│   │       │   ├── V4_create_story_token_table.sql
+│   │       │   └── V5_add_secondary_definition.sql
 │   │       │
 │   │       ├── application.yml
 │   │       ├── application-local.yml (not included in github repo)
