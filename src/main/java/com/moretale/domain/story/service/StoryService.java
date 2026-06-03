@@ -178,7 +178,37 @@ public class StoryService {
         String sourceLanguage = resolvePrimaryLanguage(profile);
         String targetLanguage = resolveSecondaryLanguage(profile);
 
-        // Story 엔티티 생성
+        List<StorySaveRequest.SlideRequest> slideRequests =
+                request.getSlides() != null ? request.getSlides() : List.of();
+
+        log.info("[saveStory] 슬라이드 수신 - storyTitle={}, totalSlides={}",
+                request.getTitle(), slideRequests.size());
+
+        for (int i = 0; i < slideRequests.size(); i++) {
+            StorySaveRequest.SlideRequest slideReq = slideRequests.get(i);
+
+            log.info("[saveStory] 수신 슬라이드[{}] - order={}, imageUrl={}, textKrBlank={}, textNativeBlank={}, "
+                            + "audioUrlKr={}, audioUrlNative={}, vocabularySize={}, isCoverCandidate={}",
+                    i,
+                    slideReq.getOrder(),
+                    maskUrl(slideReq.getImageUrl()),
+                    slideReq.getTextKr() == null || slideReq.getTextKr().isBlank(),
+                    slideReq.getTextNative() == null || slideReq.getTextNative().isBlank(),
+                    slideReq.getAudioUrlKr() != null ? "있음" : "null",
+                    slideReq.getAudioUrlNative() != null ? "있음" : "null",
+                    slideReq.getVocabulary() != null ? slideReq.getVocabulary().size() : 0,
+                    isCoverSlide(slideReq));
+        }
+
+        boolean aiIncludesCover = !slideRequests.isEmpty() && isCoverSlide(slideRequests.get(0));
+
+        log.info("[saveStory] 커버 슬라이드 포함 여부 - aiIncludesCover={}", aiIncludesCover);
+
+        if (!aiIncludesCover) {
+            log.warn("[saveStory] AI 응답에 커버 슬라이드가 없음. 현재 요청에 포함된 슬라이드만 저장합니다. firstSlideTextKr={}",
+                    slideRequests.isEmpty() ? "N/A" : slideRequests.get(0).getTextKr());
+        }
+
         Story story = Story.builder()
                 .title(request.getTitle())
                 .prompt(request.getPrompt())
@@ -190,19 +220,20 @@ public class StoryService {
                 .isPublic(false)
                 .build();
 
-        // Slide 엔티티 생성
-        if (request.getSlides() != null) {
-            request.getSlides().forEach(slideReq -> {
-                Slide slide = Slide.builder()
-                        .order(slideReq.getOrder())
-                        .imageUrl(slideReq.getImageUrl())
-                        .textKr(slideReq.getTextKr())
-                        .textNative(slideReq.getTextNative())
-                        .audioUrlKr(slideReq.getAudioUrlKr())
-                        .audioUrlNative(slideReq.getAudioUrlNative())
-                        .build();
-                story.addSlide(slide);
-            });
+        for (StorySaveRequest.SlideRequest slideReq : slideRequests) {
+            Slide slide = Slide.builder()
+                    .order(slideReq.getOrder())
+                    .imageUrl(slideReq.getImageUrl())
+                    .textKr(slideReq.getTextKr() != null ? slideReq.getTextKr() : "")
+                    .textNative(slideReq.getTextNative() != null ? slideReq.getTextNative() : "")
+                    .audioUrlKr(slideReq.getAudioUrlKr())
+                    .audioUrlNative(slideReq.getAudioUrlNative())
+                    .build();
+
+            story.addSlide(slide);
+
+            log.debug("[saveStory] Slide 엔티티 생성 - order={}, isCover={}",
+                    slideReq.getOrder(), isCoverSlide(slideReq));
         }
 
         // Story + Slide 먼저 저장 (slide_id 획득 필요)
@@ -211,46 +242,80 @@ public class StoryService {
         // 1차 flush: Story + Slide INSERT, slideId 확보
         em.flush();
 
-        // order → vocabulary 맵 구성 (슬라이드별 AI vocabulary 매핑)
-        List<StorySaveRequest.SlideRequest> slideRequests =
-                request.getSlides() != null ? request.getSlides() : List.of();
+        log.info("[saveStory] Story+Slide 저장 완료 - storyId={}, savedSlideCount={}",
+                savedStory.getStoryId(), savedStory.getSlides().size());
 
         Map<Integer, List<VocabularyItem>> vocabularyByOrder = slideRequests.stream()
-                .filter(req -> req.getOrder() != null && req.getVocabulary() != null)
+                .filter(req -> req.getOrder() != null)
+                .filter(req -> req.getVocabulary() != null && !req.getVocabulary().isEmpty())
                 .collect(Collectors.toMap(
                         StorySaveRequest.SlideRequest::getOrder,
-                        StorySaveRequest.SlideRequest::getVocabulary
+                        StorySaveRequest.SlideRequest::getVocabulary,
+                        (existing, replacement) -> existing
                 ));
 
-        log.info("동화 저장 vocabulary 매핑 - storyTitle={}, 총 슬라이드={}, vocabulary 포함 슬라이드={}",
+        log.info("[saveStory] vocabulary 매핑 - storyTitle={}, 총 슬라이드={}, vocabulary 포함 슬라이드={}, 커버 제외 본문 슬라이드={}",
                 request.getTitle(),
                 slideRequests.size(),
-                vocabularyByOrder.size());
+                vocabularyByOrder.size(),
+                slideRequests.size() - (aiIncludesCover ? 1 : 0));
 
         // 슬라이드별 토큰 생성 및 연결
         savedStory.getSlides().forEach(slide -> {
+            if (isSavedCoverSlide(slide)) {
+                log.info("[saveStory] 커버 슬라이드 토큰 생성 건너뜀 - slideId={}, order={}",
+                        slide.getSlideId(), slide.getOrder());
+                return;
+            }
+
             List<VocabularyItem> vocabulary = vocabularyByOrder.get(slide.getOrder());
 
-            log.info("슬라이드 토큰 처리 - slideId={}, order={}, vocabularySize={}",
+            log.info("[saveStory] 슬라이드 토큰 처리 - slideId={}, order={}, vocabularySize={}",
                     slide.getSlideId(),
                     slide.getOrder(),
                     vocabulary != null ? vocabulary.size() : 0);
+
+            if (vocabulary == null || vocabulary.isEmpty()) {
+                log.warn("[saveStory] vocabulary 없음 - slideId={}, order={} → 토큰 생성 건너뜀",
+                        slide.getSlideId(), slide.getOrder());
+                return;
+            }
 
             try {
                 List<StoryToken> tokens = storyTokenService.generateTokensForSlide(
                         slide, vocabulary, sourceLanguage, targetLanguage
                 );
+
                 tokens.forEach(slide::addToken);
+
+                log.info("[saveStory] 토큰 생성 완료 - slideId={}, order={}, tokenCount={}",
+                        slide.getSlideId(), slide.getOrder(), tokens.size());
             } catch (Exception e) {
-                log.error("토큰 생성 실패 (건너뜀) - slideId={}", slide.getSlideId(), e);
+                log.error("[saveStory] 토큰 생성 실패 (건너뜀) - slideId={}, order={}",
+                        slide.getSlideId(), slide.getOrder(), e);
             }
         });
 
         // 2차 flush: StoryToken INSERT
         em.flush();
 
-        log.info("동화 저장 완료 - storyId={}, userId={}",
-                savedStory.getStoryId(), userId);
+        long coverCount = savedStory.getSlides().stream()
+                .filter(this::isSavedCoverSlide)
+                .count();
+
+        long contentCount = savedStory.getSlides().size() - coverCount;
+
+        long tokenCount = savedStory.getSlides().stream()
+                .mapToLong(slide -> slide.getTokens().size())
+                .sum();
+
+        log.info("[saveStory] 저장 완료 요약 - storyId={}, userId={}, 총 슬라이드={} (커버={}, 본문={}), 총 토큰={}",
+                savedStory.getStoryId(),
+                userId,
+                savedStory.getSlides().size(),
+                coverCount,
+                contentCount,
+                tokenCount);
 
         return StoryResponse.from(savedStory);
     }
@@ -387,10 +452,14 @@ public class StoryService {
      * - null: 기본값 ko
      */
     private String resolvePrimaryLanguage(UserProfile profile) {
-        if (profile.getFirstLanguage() == null) return "ko";
+        if (profile.getFirstLanguage() == null) {
+            return "ko";
+        }
+
         if (profile.getFirstLanguage() == Language.OTHER) {
             return profile.getCustomFirstLanguage() != null && !profile.getCustomFirstLanguage().isBlank()
-                    ? profile.getCustomFirstLanguage() : "other";
+                    ? profile.getCustomFirstLanguage()
+                    : "other";
         }
 
         return profile.getFirstLanguage().getIsoCode();
@@ -403,12 +472,47 @@ public class StoryService {
      * - null: 기본값 en
      */
     private String resolveSecondaryLanguage(UserProfile profile) {
-        if (profile.getSecondLanguage() == null) return "en";
+        if (profile.getSecondLanguage() == null) {
+            return "en";
+        }
+
         if (profile.getSecondLanguage() == Language.OTHER) {
             return profile.getCustomSecondLanguage() != null && !profile.getCustomSecondLanguage().isBlank()
-                    ? profile.getCustomSecondLanguage() : "other";
+                    ? profile.getCustomSecondLanguage()
+                    : "other";
         }
 
         return profile.getSecondLanguage().getIsoCode();
+    }
+
+    private boolean isCoverSlide(StorySaveRequest.SlideRequest slideReq) {
+        if (slideReq == null || slideReq.getOrder() == null || slideReq.getOrder() != 0) {
+            return false;
+        }
+
+        boolean textKrEmpty = slideReq.getTextKr() == null || slideReq.getTextKr().isBlank();
+        boolean textNativeEmpty = slideReq.getTextNative() == null || slideReq.getTextNative().isBlank();
+
+        return textKrEmpty && textNativeEmpty;
+    }
+
+    private boolean isSavedCoverSlide(Slide slide) {
+        if (slide == null || slide.getOrder() == null || slide.getOrder() != 0) {
+            return false;
+        }
+
+        boolean textKrEmpty = slide.getTextKr() == null || slide.getTextKr().isBlank();
+        boolean textNativeEmpty = slide.getTextNative() == null || slide.getTextNative().isBlank();
+
+        return textKrEmpty && textNativeEmpty;
+    }
+
+    private String maskUrl(String url) {
+        if (url == null) {
+            return "null";
+        }
+
+        int start = Math.max(0, url.length() - 40);
+        return url.substring(start);
     }
 }
