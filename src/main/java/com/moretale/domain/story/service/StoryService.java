@@ -12,6 +12,7 @@ import com.moretale.domain.story.dto.StoryListResponse;
 import com.moretale.domain.story.dto.StoryResponse;
 import com.moretale.domain.story.dto.StorySaveRequest;
 import com.moretale.domain.story.dto.StoryShareRequest;
+import com.moretale.domain.story.dto.VocabularyItem;
 import com.moretale.domain.story.entity.Slide;
 import com.moretale.domain.story.entity.Story;
 import com.moretale.domain.story.entity.StoryToken;
@@ -31,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -173,6 +175,9 @@ public class StoryService {
             throw new BusinessException(ErrorCode.STORY_ACCESS_DENIED);
         }
 
+        String sourceLanguage = resolvePrimaryLanguage(profile);
+        String targetLanguage = resolveSecondaryLanguage(profile);
+
         // Story 엔티티 생성
         Story story = Story.builder()
                 .title(request.getTitle())
@@ -180,8 +185,8 @@ public class StoryService {
                 .user(user)
                 .profile(profile)
                 .childName(profile.getChildName())
-                .primaryLanguage(resolvePrimaryLanguage(profile))
-                .secondaryLanguage(resolveSecondaryLanguage(profile))
+                .primaryLanguage(sourceLanguage)
+                .secondaryLanguage(targetLanguage)
                 .isPublic(false)
                 .build();
 
@@ -203,16 +208,37 @@ public class StoryService {
         // Story + Slide 먼저 저장 (slide_id 획득 필요)
         Story savedStory = storyRepository.save(story);
 
-        // 1차 flush: Story + Slide INSERT 실행, slideId 확보
+        // 1차 flush: Story + Slide INSERT, slideId 확보
         em.flush();
 
-        String sourceLanguage = resolvePrimaryLanguage(profile);
-        String targetLanguage = resolveSecondaryLanguage(profile);
+        // order → vocabulary 맵 구성 (슬라이드별 AI vocabulary 매핑)
+        List<StorySaveRequest.SlideRequest> slideRequests =
+                request.getSlides() != null ? request.getSlides() : List.of();
 
+        Map<Integer, List<VocabularyItem>> vocabularyByOrder = slideRequests.stream()
+                .filter(req -> req.getOrder() != null && req.getVocabulary() != null)
+                .collect(Collectors.toMap(
+                        StorySaveRequest.SlideRequest::getOrder,
+                        StorySaveRequest.SlideRequest::getVocabulary
+                ));
+
+        log.info("동화 저장 vocabulary 매핑 - storyTitle={}, 총 슬라이드={}, vocabulary 포함 슬라이드={}",
+                request.getTitle(),
+                slideRequests.size(),
+                vocabularyByOrder.size());
+
+        // 슬라이드별 토큰 생성 및 연결
         savedStory.getSlides().forEach(slide -> {
+            List<VocabularyItem> vocabulary = vocabularyByOrder.get(slide.getOrder());
+
+            log.info("슬라이드 토큰 처리 - slideId={}, order={}, vocabularySize={}",
+                    slide.getSlideId(),
+                    slide.getOrder(),
+                    vocabulary != null ? vocabulary.size() : 0);
+
             try {
                 List<StoryToken> tokens = storyTokenService.generateTokensForSlide(
-                        slide, sourceLanguage, targetLanguage
+                        slide, vocabulary, sourceLanguage, targetLanguage
                 );
                 tokens.forEach(slide::addToken);
             } catch (Exception e) {
@@ -220,7 +246,7 @@ public class StoryService {
             }
         });
 
-        // 2차 flush: StoryToken INSERT 실행, tokenId 확보
+        // 2차 flush: StoryToken INSERT
         em.flush();
 
         log.info("동화 저장 완료 - storyId={}, userId={}",
@@ -303,14 +329,11 @@ public class StoryService {
         UserProfile profile = getUserProfile(user, request.getProfileId());
 
         String childName = request.getChildName() != null
-                ? request.getChildName()
-                : profile.getChildName();
+                ? request.getChildName() : profile.getChildName();
         String primaryLang = request.getPrimaryLanguage() != null
-                ? request.getPrimaryLanguage()
-                : resolvePrimaryLanguage(profile);
+                ? request.getPrimaryLanguage() : resolvePrimaryLanguage(profile);
         String secondaryLang = request.getSecondaryLanguage() != null
-                ? request.getSecondaryLanguage()
-                : resolveSecondaryLanguage(profile);
+                ? request.getSecondaryLanguage() : resolveSecondaryLanguage(profile);
 
         return StoryGenerateRequest.builder()
                 .prompt(request.getPrompt())
@@ -321,29 +344,21 @@ public class StoryService {
                 .ageGroup(request.getAgeGroup() != null ? request.getAgeGroup() : profile.getAgeGroup())
                 .childAge(request.getChildAge() != null ? request.getChildAge() : profile.getChildAge())
                 .firstLanguageProficiency(request.getFirstLanguageProficiency() != null
-                        ? request.getFirstLanguageProficiency()
-                        : profile.getFirstLanguageProficiency())
+                        ? request.getFirstLanguageProficiency() : profile.getFirstLanguageProficiency())
                 .secondLanguageProficiency(request.getSecondLanguageProficiency() != null
-                        ? request.getSecondLanguageProficiency()
-                        : profile.getSecondLanguageProficiency())
+                        ? request.getSecondLanguageProficiency() : profile.getSecondLanguageProficiency())
                 .firstLanguageListening(request.getFirstLanguageListening() != null
-                        ? request.getFirstLanguageListening()
-                        : profile.getFirstLanguageListening())
+                        ? request.getFirstLanguageListening() : profile.getFirstLanguageListening())
                 .firstLanguageSpeaking(request.getFirstLanguageSpeaking() != null
-                        ? request.getFirstLanguageSpeaking()
-                        : profile.getFirstLanguageSpeaking())
+                        ? request.getFirstLanguageSpeaking() : profile.getFirstLanguageSpeaking())
                 .secondLanguageListening(request.getSecondLanguageListening() != null
-                        ? request.getSecondLanguageListening()
-                        : profile.getSecondLanguageListening())
+                        ? request.getSecondLanguageListening() : profile.getSecondLanguageListening())
                 .secondLanguageSpeaking(request.getSecondLanguageSpeaking() != null
-                        ? request.getSecondLanguageSpeaking()
-                        : profile.getSecondLanguageSpeaking())
+                        ? request.getSecondLanguageSpeaking() : profile.getSecondLanguageSpeaking())
                 .storyPreference(request.getStoryPreference() != null
-                        ? request.getStoryPreference()
-                        : profile.getStoryPreference())
+                        ? request.getStoryPreference() : profile.getStoryPreference())
                 .customStoryPreference(request.getCustomStoryPreference() != null
-                        ? request.getCustomStoryPreference()
-                        : profile.getCustomStoryPreference())
+                        ? request.getCustomStoryPreference() : profile.getCustomStoryPreference())
                 .autoGenerated(request.getAutoGenerated())
                 .recommendedTaleTitle(request.getRecommendedTaleTitle())
                 .build();
@@ -372,14 +387,10 @@ public class StoryService {
      * - null: 기본값 ko
      */
     private String resolvePrimaryLanguage(UserProfile profile) {
-        if (profile.getFirstLanguage() == null) {
-            return "ko";
-        }
-
+        if (profile.getFirstLanguage() == null) return "ko";
         if (profile.getFirstLanguage() == Language.OTHER) {
             return profile.getCustomFirstLanguage() != null && !profile.getCustomFirstLanguage().isBlank()
-                    ? profile.getCustomFirstLanguage()
-                    : "other";
+                    ? profile.getCustomFirstLanguage() : "other";
         }
 
         return profile.getFirstLanguage().getIsoCode();
@@ -392,14 +403,10 @@ public class StoryService {
      * - null: 기본값 en
      */
     private String resolveSecondaryLanguage(UserProfile profile) {
-        if (profile.getSecondLanguage() == null) {
-            return "en";
-        }
-
+        if (profile.getSecondLanguage() == null) return "en";
         if (profile.getSecondLanguage() == Language.OTHER) {
             return profile.getCustomSecondLanguage() != null && !profile.getCustomSecondLanguage().isBlank()
-                    ? profile.getCustomSecondLanguage()
-                    : "other";
+                    ? profile.getCustomSecondLanguage() : "other";
         }
 
         return profile.getSecondLanguage().getIsoCode();

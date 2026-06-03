@@ -1,130 +1,87 @@
 package com.moretale.domain.story.service.impl;
 
-import com.moretale.domain.story.dto.TokenEnrichRequest;
-import com.moretale.domain.story.dto.TokenEnrichResponse;
+import com.moretale.domain.story.dto.VocabularyItem;
 import com.moretale.domain.story.entity.Slide;
 import com.moretale.domain.story.entity.StoryToken;
-import com.moretale.domain.story.service.AITokenService;
 import com.moretale.domain.story.service.StoryTokenService;
-import com.moretale.domain.story.service.TokenizationService;
-import com.moretale.domain.tts.service.TTSService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
+/**
+ * StoryToken 생성 서비스 구현체
+ *
+ * ── 변경 이력 ─────────────────────────────────────────────────────────────
+ *   이전: 형태소 분석기(open-korean-text) + AITokenService(더미 enrichment)로
+ *         텍스트에서 토큰을 추출하고 번역/설명을 별도 AI 호출로 처리.
+ *         → AI vocabulary가 백엔드에 전달되지 않아 더미 데이터가 저장되는 버그.
+ *
+ *   현재: AI 파트가 동화 생성 시점에 슬라이드별 vocabulary를 함께 반환.
+ *         백엔드는 해당 vocabulary를 그대로 StoryToken으로 변환하여 저장.
+ *         형태소 분석기 및 AITokenService(더미 enrichment) 제거.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class StoryTokenServiceImpl implements StoryTokenService {
 
-    private final TokenizationService tokenizationService;
-    private final AITokenService aiTokenService;
-    private final TTSService ttsService;
-
-    // 슬라이드당 최대 하이라이트 단어 수
-    private static final int MAX_HIGHLIGHT_COUNT = 3;
-    private static final String TOKEN_SOURCE_LANGUAGE = "ko";
-    private static final String TOKEN_TTS_LANGUAGE = "ko-KR";
-
     @Override
     public List<StoryToken> generateTokensForSlide(
             Slide slide,
+            List<VocabularyItem> vocabulary,
             String sourceLanguage,
             String targetLanguage
     ) {
-        String text = slide.getTextKr();
-        if (text == null || text.isBlank()) {
-            log.warn("슬라이드 textKr가 비어있음 - slideId={}", slide.getSlideId());
-            return Collections.emptyList();
+        if (CollectionUtils.isEmpty(vocabulary)) {
+            log.warn("슬라이드 vocabulary가 비어있음 - slideId={}, 토큰 생성 건너뜀",
+                    slide.getSlideId());
+            return List.of();
         }
 
-        // 1. 어절 단위 토큰화
-        List<String> rawTokens = tokenizationService.tokenize(text);
-        log.debug("토큰화 결과 - slideId={}, tokens={}", slide.getSlideId(), rawTokens);
+        log.info("토큰 생성 시작 - slideId={}, vocabularySize={}, {}→{}",
+                slide.getSlideId(), vocabulary.size(), sourceLanguage, targetLanguage);
 
-        // 2. 각 어절을 정규화 (조사 제거)
-        List<String> normalizedTokens = rawTokens.stream()
-                .map(tokenizationService::normalize)
-                .collect(Collectors.toList());
+        List<StoryToken> tokens = new ArrayList<>();
 
-        // 3. 하이라이트 대상 단어 선정
-        List<String> highlightWords = tokenizationService.selectHighlightWords(
-                normalizedTokens, MAX_HIGHLIGHT_COUNT
-        );
-        Set<String> highlightSet = new HashSet<>(highlightWords);
-        log.debug("하이라이트 단어 선정 - slideId={}, words={}", slide.getSlideId(), highlightWords);
+        for (int i = 0; i < vocabulary.size(); i++) {
+            VocabularyItem item = vocabulary.get(i);
 
-        // 4. 하이라이트 단어에 대한 번역 + definition AI 생성 (일괄 요청)
-        Map<String, TokenEnrichResponse> enrichMap = new HashMap<>();
-        if (!highlightWords.isEmpty()) {
-            List<TokenEnrichRequest> enrichRequests = highlightWords.stream()
-                    .map(word -> TokenEnrichRequest.builder()
-                            .word(word)
-                            .context(text)
-                            .build())
-                    .collect(Collectors.toList());
-
-            try {
-                List<TokenEnrichResponse> enrichResponses = aiTokenService.enrichTokens(
-                        enrichRequests,
-                        TOKEN_SOURCE_LANGUAGE,
-                        targetLanguage
-                );
-
-                enrichResponses.forEach(response -> enrichMap.put(response.getWord(), response));
-            } catch (Exception e) {
-                log.error("토큰 enrichment 실패 - slideId={}", slide.getSlideId(), e);
-                // enrichment 실패 시 하이라이트는 유지하되 번역/definition 없이 진행
+            if (item.getPrimaryWord() == null || item.getPrimaryWord().isBlank()) {
+                log.warn("vocabulary primaryWord가 비어있음 - slideId={}, entryId={}",
+                        slide.getSlideId(), item.getEntryId());
+                continue;
             }
-        }
 
-        // 5. StoryToken 목록 생성
-        List<StoryToken> result = new ArrayList<>();
-        for (int i = 0; i < rawTokens.size(); i++) {
-            String normalized = normalizedTokens.get(i);
-            boolean isHighlight = highlightSet.contains(normalized);
-
-            StoryToken.StoryTokenBuilder builder = StoryToken.builder()
-                    .text(normalized)
+            StoryToken token = StoryToken.builder()
+                    .text(item.getPrimaryWord().trim())
                     .tokenOrder(i)
-                    .highlight(isHighlight)
-                    .sourceLanguage(TOKEN_SOURCE_LANGUAGE);
+                    .highlight(true)
+                    .translation(item.getSecondaryWord())
+                    .definition(item.getPrimaryDefinition())
+                    .secondaryDefinition(item.getSecondaryDefinition())
+                    .audioUrl(item.getAudioUrlPrimary())
+                    .sourceLanguage(sourceLanguage)
+                    .targetLanguage(targetLanguage)
+                    .build();
 
-            if (isHighlight) {
-                TokenEnrichResponse enrich = enrichMap.get(normalized);
-                if (enrich != null) {
-                    builder
-                            .translation(enrich.getTranslation())
-                            .definition(enrich.getDefinition())
-                            .targetLanguage(targetLanguage);
+            tokens.add(token);
 
-                    // 6. 하이라이트 단어 TTS 생성
-                    try {
-                        String audioUrl = ttsService.generateAudioUrl(
-                                normalized,
-                                TOKEN_TTS_LANGUAGE
-                        );
-                        builder.audioUrl(audioUrl);
-                    } catch (Exception e) {
-                        log.warn("단어 TTS 생성 실패 - word={}", normalized, e);
-                    }
-                }
-            }
-
-            result.add(builder.build());
+            log.debug("토큰 생성 - slideId={}, order={}, word={}, translation={}, definitionNull={}, secondaryDefinitionNull={}",
+                    slide.getSlideId(), i,
+                    item.getPrimaryWord(),
+                    item.getSecondaryWord(),
+                    item.getPrimaryDefinition() == null,
+                    item.getSecondaryDefinition() == null);
         }
 
-        log.info("토큰 생성 완료 - slideId={}, 총{}개, 하이라이트{}개",
-                slide.getSlideId(), result.size(), highlightWords.size());
-        return result;
+        log.info("토큰 생성 완료 - slideId={}, 총 {}개 (전체 하이라이트)",
+                slide.getSlideId(), tokens.size());
+
+        return tokens;
     }
 }
