@@ -24,7 +24,7 @@ public class StoryToken {
     @JoinColumn(name = "slide_id", nullable = false)
     private Slide slide;
 
-    // 원문 텍스트 (예: "사자를" → 정규화 후 "사자")
+    // 원문 텍스트 (정규화된 형태, 예: "우주복")
     @Column(name = "text", nullable = false, length = 100)
     private String text;
 
@@ -32,28 +32,32 @@ public class StoryToken {
     @Column(name = "token_order", nullable = false)
     private Integer tokenOrder;
 
-    // 하이라이트 여부 (핵심 단어인 경우 true)
+    // 하이라이트 여부 (AI vocabulary에 포함된 핵심 단어인 경우 true)
     @Column(name = "highlight", nullable = false)
     @Builder.Default
     private Boolean highlight = false;
 
-    // 번역어 (highlight=true인 경우에만 존재)
+    // 번역어 / 제2언어 단어 (highlight=true인 경우에만 존재)
     @Column(name = "translation", length = 200)
     private String translation;
 
-    // 뜻 설명 (한국어 기준, highlight=true인 경우에만 존재)
+    // 제1언어 뜻 설명 (highlight=true인 경우에만 존재)
     @Column(name = "definition", columnDefinition = "TEXT")
     private String definition;
 
-    // 단어 발음 오디오 URL (highlight=true인 경우에만 존재)
+    // 제2언어 뜻 설명 (highlight=true인 경우에만 존재)
+    @Column(name = "secondary_definition", columnDefinition = "TEXT")
+    private String secondaryDefinition;
+
+    // 제1언어 단어 발음 오디오 URL (highlight=true인 경우에만 존재)
     @Column(name = "audio_url", length = 500)
     private String audioUrl;
 
-    // 원문 언어 (예: "ko")
+    // 제1언어 코드 (예: "ko", "vi", "en")
     @Column(name = "source_language", length = 10)
     private String sourceLanguage;
 
-    // 번역 대상 언어 (예: "vi")
+    // 제2언어 코드 (예: "vi", "en", "ja")
     @Column(name = "target_language", length = 10)
     private String targetLanguage;
 }
