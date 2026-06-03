@@ -193,20 +193,11 @@ Backend는 사용자별 언어 설정, 프로필 정보, 생성된 콘텐츠의 
 
 ## ⚙️ Architecture
 
-> MORETALE Backend는 Frontend와 AI 서버 사이에서 핵심 API 서버 역할을 수행합니다.
- 
->Frontend 요청을 받아 인증 및 비즈니스 로직을 처리하고, AI 기능이 필요한 경우 AI 서버로 요청을 전달합니다.
-
-> 생성된 동화, 퀴즈, 사용자 정보, 꿀단지 내역 등은 Cloud SQL에 저장됩니다.  
-이미지나 오디오와 같은 정적 리소스는 Google Cloud Storage와 연동하여 관리할 수 있도록 설계했습니다.
-
-(이미지추가)
+![Backend_Architecture.png](Pictures_for_README／Backend_Architecture.png)
 
 ---
 
 ## 📋 ERD
-
-> 사용자, 프로필, 동화, 슬라이드, 퀴즈, 단어장, 꿀단지 이력 등을 중심으로 데이터베이스를 설계했습니다.
 
 ![ERD.png](Pictures_for_README/ERD.png)
 
