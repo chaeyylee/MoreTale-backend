@@ -193,7 +193,7 @@ Backend는 사용자별 언어 설정, 프로필 정보, 생성된 콘텐츠의 
 
 ## ⚙️ Architecture
 
-![Backend_Architecture.png](Pictures_for_README／Backend_Architecture.png)
+![Backend_Architecture.png](Pictures_for_README/Backend_Architecture.png)
 
 ---
 
