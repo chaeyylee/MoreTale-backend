@@ -55,27 +55,31 @@ public class VocabularyEntry {
     @OnDelete(action = OnDeleteAction.CASCADE)
     private StoryToken storyToken;
 
-    // 단어 원문 (예: "사자를")
+    // 단어 원문 (예: "우주복")
     @Column(name = "word", nullable = false, length = 100)
     private String word;
 
-    // 정규화된 단어 (예: "사자") - 중복 판단 기준
+    // 정규화된 단어 — 중복 판단 기준
     @Column(name = "normalized_word", nullable = false, length = 100)
     private String normalizedWord;
 
-    // 번역어
+    // 번역어 / 제2언어 단어
     @Column(name = "translation", length = 200)
     private String translation;
 
-    // 단어 뜻 설명
+    // 제1언어 뜻 설명
     @Column(name = "definition", columnDefinition = "TEXT")
     private String definition;
 
-    // 원문 언어 (예: "ko")
+    // 제2언어 뜻 설명 (신규)
+    @Column(name = "secondary_definition", columnDefinition = "TEXT")
+    private String secondaryDefinition;
+
+    // 제1언어 코드 (예: "ko")
     @Column(name = "source_language", length = 10)
     private String sourceLanguage;
 
-    // 번역 대상 언어 (예: "vi")
+    // 제2언어 코드 (예: "vi")
     @Column(name = "target_language", length = 10)
     private String targetLanguage;
 
@@ -87,8 +91,6 @@ public class VocabularyEntry {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    // ── 향후 확장 필드 (현재는 미사용, 스키마에만 준비) ──────────────────────
 
     // 즐겨찾기 여부
     @Column(name = "is_favorite", nullable = false)
@@ -109,8 +111,6 @@ public class VocabularyEntry {
     @Column(name = "last_reviewed_at")
     private LocalDateTime lastReviewedAt;
 
-    // ── 편의 메서드 ────────────────────────────────────────────────────────────
-
     public void updateFavorite(Boolean isFavorite) {
         this.isFavorite = isFavorite;
     }
@@ -129,8 +129,8 @@ public class VocabularyEntry {
 
     // 학습 상태 enum
     public enum LearningStatus {
-        UNSEEN,    // 아직 학습 안 함
-        LEARNING,  // 학습 중
-        MASTERED   // 완전히 익힘
+        UNSEEN,
+        LEARNING,
+        MASTERED
     }
 }

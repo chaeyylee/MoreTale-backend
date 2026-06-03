@@ -3,11 +3,7 @@ package com.moretale.domain.story.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.List;
 
@@ -44,19 +40,25 @@ public class StorySaveRequest {
         @Schema(description = "슬라이드 순서 (DB 저장 기준, 0부터 시작)", example = "0")
         private Integer order;
 
-        @Schema(description = "슬라이드 이미지 URL", example = "https://storage.example.com/images/slide1.png")
+        @Schema(description = "슬라이드 이미지 URL",
+                example = "https://storage.googleapis.com/moretale-ai-generated-project-640335ef-3b09-441e-a26/generated/20260602_160057_story_job/illus_0.png")
         private String imageUrl;
 
-        @Schema(description = "한국어 텍스트", example = "옛날 옛날에 민준이가 살았어요.")
+        @Schema(description = "제1언어 텍스트", example = "옛날 옛날에 민준이가 살았어요.")
         private String textKr;
 
         @Schema(description = "제2언어 텍스트", example = "Ngày xưa có Minjun.")
         private String textNative;
 
-        @Schema(description = "한국어 음성 URL", example = "https://storage.example.com/audio/slide1_kr.mp3")
+        @Schema(description = "제1언어 음성 URL (wav 형식)",
+                example = "https://storage.googleapis.com/moretale-ai-generated-project-640335ef-3b09-441e-a26/generated/20260602_160057_story_job/audio_0_primary.wav")
         private String audioUrlKr;
 
-        @Schema(description = "제2언어 음성 URL", example = "https://storage.example.com/audio/slide1_vi.mp3")
+        @Schema(description = "제2언어 음성 URL (wav 형식)",
+                example = "https://storage.googleapis.com/moretale-ai-generated-project-640335ef-3b09-441e-a26/generated/20260602_160057_story_job/audio_0_secondary.wav")
         private String audioUrlNative;
+
+        @Schema(description = "AI가 생성한 슬라이드별 핵심 단어 목록 (없으면 빈 리스트 또는 null)")
+        private List<VocabularyItem> vocabulary;
     }
 }

@@ -16,25 +16,29 @@ public class VocabularyResponse {
     @Schema(description = "단어장 항목 ID", example = "1")
     private Long vocabularyId;
 
-    @Schema(description = "단어 원문", example = "사자")
+    @Schema(description = "단어 원문", example = "우주복")
     private String word;
 
-    @Schema(description = "정규화된 단어 (조사 제거)", example = "사자")
+    @Schema(description = "정규화된 단어", example = "우주복")
     private String normalizedWord;
 
-    @Schema(description = "번역어", example = "sư tử")
+    @Schema(description = "번역어 / 제2언어 단어", example = "bộ đồ phi hành gia")
     private String translation;
 
-    @Schema(description = "뜻 설명", example = "갈기가 있는 큰 고양이과 동물")
+    @Schema(description = "제1언어 뜻 설명", example = "우주에서 입는 특별한 옷")
     private String definition;
 
-    @Schema(description = "원문 언어 ISO 코드", example = "ko")
+    @Schema(description = "제2언어 뜻 설명", example = "áo đặc biệt mặc khi bay vào không gian")
+    private String secondaryDefinition;
+
+    @Schema(description = "제1언어 ISO 코드", example = "ko")
     private String sourceLanguage;
 
-    @Schema(description = "번역 대상 언어 ISO 코드", example = "vi")
+    @Schema(description = "제2언어 ISO 코드", example = "vi")
     private String targetLanguage;
 
-    @Schema(description = "단어 발음 오디오 URL", example = "https://storage.example.com/audio/word1.mp3")
+    @Schema(description = "단어 발음 오디오 URL (wav 형식)",
+            example = "https://storage.googleapis.com/moretale-ai-generated-project-640335ef-3b09-441e-a26/tts/audio/tts_ko-KR_12345678_abcd1234.wav")
     private String audioUrl;
 
     @Schema(description = "출처 동화 ID", example = "5")
@@ -74,6 +78,7 @@ public class VocabularyResponse {
                 .normalizedWord(entry.getNormalizedWord())
                 .translation(entry.getTranslation())
                 .definition(entry.getDefinition())
+                .secondaryDefinition(entry.getSecondaryDefinition())
                 .sourceLanguage(entry.getSourceLanguage())
                 .targetLanguage(entry.getTargetLanguage())
                 .audioUrl(entry.getAudioUrl())

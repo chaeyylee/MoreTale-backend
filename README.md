@@ -200,7 +200,7 @@ Backend는 사용자별 언어 설정, 프로필 정보, 생성된 콘텐츠의 
 > 생성된 동화, 퀴즈, 사용자 정보, 꿀단지 내역 등은 Cloud SQL에 저장됩니다.  
 이미지나 오디오와 같은 정적 리소스는 Google Cloud Storage와 연동하여 관리할 수 있도록 설계했습니다.
 
-![Architecture.png](Pictures_for_README/Architecture.png)
+(이미지추가)
 
 ---
 
@@ -234,21 +234,26 @@ cp .env.example .env
 주요 환경변수는 다음과 같습니다.
 
 ```env
+PORT=8080
 SPRING_PROFILES_ACTIVE=local
 
-DB_URL=
-DB_USERNAME=
-DB_PASSWORD=
+DB_URL=jdbc:postgresql://localhost:5432/moretale
+DB_USERNAME=postgres
+DB_PASSWORD=your_db_password_here
 
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
 
-JWT_SECRET=
+JWT_SECRET=your_jwt_secret_here
 
-FRONTEND_URL=
+FRONTEND_URL=http://localhost:5173
 
-MORETALE_AI_BASE_URL=
-MORETALE_AI_API_KEY=
+MORETALE_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+MORETALE_AI_BASE_URL=http://127.0.0.1:8000
+MORETALE_AI_API_KEY=replace-with-ai-moretale-api-key
+
+MORETALE_BACKEND_PUBLIC_BASE_URL=http://127.0.0.1:8080
 ```
 
 전체 환경변수 목록은 `.env.example` 파일을 참고하세요.
