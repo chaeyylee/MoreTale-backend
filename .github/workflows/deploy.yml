@@ -1,0 +1,77 @@
+name: Deploy MoreTale Backend
+
+on:
+  push:
+    branches:
+      - develop
+
+env:
+  PROJECT_ID: project-640335ef-3b09-441e-a26
+  REGION: asia-northeast3
+  REPOSITORY: moretale-repo
+  IMAGE_NAME: moretale-backend
+  SERVICE_NAME: moretale-backend
+  IMAGE_URI: asia-northeast3-docker.pkg.dev/project-640335ef-3b09-441e-a26/moretale-repo/moretale-backend:latest
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Grant execute permission for Gradle
+        run: chmod +x ./gradlew
+
+      - name: Build Spring Boot project
+        run: ./gradlew clean build
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Verify Google Cloud authentication
+        run: |
+          gcloud auth list
+          gcloud config list project
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+
+      - name: Build Docker image
+        run: |
+          docker build -t moretale-backend .
+
+      - name: Tag Docker image
+        run: |
+          docker tag moretale-backend $IMAGE_URI
+
+      - name: Push Docker image
+        run: |
+          docker push $IMAGE_URI
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy $SERVICE_NAME \
+            --image $IMAGE_URI \
+            --region $REGION \
+            --platform managed \
+            --quiet
