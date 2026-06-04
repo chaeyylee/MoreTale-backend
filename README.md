@@ -393,7 +393,7 @@ MoreTale-backend
 | honeyjar   | 꿀단지 적립, 사용 및 이력 관리  |
 | profile    | 사용자 온보딩 및 프로필 정보 관리 |
 | quiz       | 동화 기반 퀴즈 생성 및 채점    |
-| story      | 동화 생성, 조회 및 보관함 관리  |
+| story      | 동화 생성, 조회 및 도서관 관리  |
 | tts        | 동화 음성 생성 기능         |
 | user       | 사용자 정보 및 인증 관리      |
 | vocabulary | 단어장 및 학습 단어 관리      |
