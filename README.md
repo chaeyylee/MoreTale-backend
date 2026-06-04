@@ -114,6 +114,7 @@ Backend는 사용자별 언어 설정, 프로필 정보, 생성된 콘텐츠의 
 | Cloud      | ![Google Cloud Run](https://img.shields.io/badge/Cloud%20Run-4285F4?style=flat-square&logo=GoogleCloud&logoColor=white) ![Cloud SQL](https://img.shields.io/badge/Cloud%20SQL-4285F4?style=flat-square&logo=GoogleCloud&logoColor=white)                                                                                                      |
 | Storage    | ![Google Cloud Storage](https://img.shields.io/badge/Cloud%20Storage-AECBFA?style=flat-square&logo=GoogleCloud&logoColor=black)                                                                                                                                                                                                               |
 | Deployment | ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=Docker&logoColor=white) ![Artifact Registry](https://img.shields.io/badge/Artifact%20Registry-4285F4?style=flat-square&logo=GoogleCloud&logoColor=white)                                                                                                          |
+| CI/CD      | ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=flat-square&logo=GitHubActions&logoColor=white)                                                                                                                                                                                                                  |
 
 ---
 
@@ -192,12 +193,14 @@ Backend는 사용자별 언어 설정, 프로필 정보, 생성된 콘텐츠의 
 ---
 
 ## ⚙️ Architecture
+> MORETALE Backend는 Frontend와 AI Server 사이에서 인증, 비즈니스 로직 처리, 데이터 저장을 담당하는 핵심 API 서버입니다.
 
 ![Backend_Architecture.png](Pictures_for_README/Backend_Architecture.png)
 
 ---
 
 ## 📋 ERD
+> 사용자, 프로필, 동화, 슬라이드, 퀴즈, 단어장, 꿀단지 이력 등을 중심으로 데이터베이스를 설계하였습니다.
 
 ![ERD.png](Pictures_for_README/ERD.png)
 
@@ -310,14 +313,21 @@ docker run -p 8080:8080 --env-file .env moretale-backend
 ```text
 GitHub Repository
   ↓
-Docker Build
+GitHub Actions
+  ↓
+Gradle Build
+  ↓
+Docker Image Build
   ↓
 Artifact Registry Push
   ↓
 Cloud Run Deploy
-  ↓
-Cloud SQL Connection
 ```
+
+### CI/CD Pipeline
+
+GitHub Actions를 사용하여 `main` 또는 `develop` 브랜치에 변경 사항이 반영되면 백엔드 애플리케이션을 자동으로 빌드합니다.  
+빌드된 애플리케이션은 Docker 이미지로 생성되어 Google Artifact Registry에 업로드되며, 이후 Google Cloud Run에 배포되어 최신 버전의 서비스를 운영 환경에 반영합니다.
 
 ### Cloud SQL Connection
 
