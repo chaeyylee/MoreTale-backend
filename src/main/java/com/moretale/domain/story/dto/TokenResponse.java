@@ -43,9 +43,9 @@ public class TokenResponse {
     private String secondaryDefinition;
 
     @Schema(
-            description = "단어 발음 오디오 URL (highlight=true인 경우에만 반환, wav 형식)",
+            description = "단어별 TTS URL. 현재 백엔드에서는 생성하지 않으며, 프론트에서 브라우저 TTS(Web Speech API)로 처리합니다.",
             nullable = true,
-            example = "https://storage.googleapis.com/moretale-ai-generated-project-640335ef-3b09-441e-a26/tts/audio/tts_ko-KR_12345678_abcd1234.wav"
+            example = ""
     )
     private String audioUrl;
 
