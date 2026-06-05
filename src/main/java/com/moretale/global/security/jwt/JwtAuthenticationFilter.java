@@ -32,6 +32,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         try {
             // 요청 헤더에서 JWT 추출
             String jwt = getJwtFromRequest(request);
@@ -57,7 +62,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 userPrincipal.getAuthorities()
                         );
 
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                authentication.setDetails(
+                        new WebAuthenticationDetailsSource().buildDetails(request)
+                );
 
                 // SecurityContext에 인증 정보 설정
                 SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -68,7 +75,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.error("Security Context에 사용자 인증을 설정할 수 없습니다.", ex);
         }
 
-        filterChain.doFilter(request, response); // 다음 필터로 요청 전달
+        filterChain.doFilter(request, response);
     }
 
     // Authorization 헤더에서 Bearer 토큰 추출
