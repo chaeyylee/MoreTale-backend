@@ -1,0 +1,28 @@
+# =============================================
+# 이 파일을 복사하여 application-local.yml 로 만드세요.
+# cp src/main/resources/application-local.yml.example \
+#    src/main/resources/application-local.yml
+#
+# ⚠️  application-local.yml은 .gitignore에 포함되어 있습니다.
+#
+# 실제 민감값(.env)은 루트의 .env 파일에 넣으세요.
+# 참고: .env.example
+# =============================================
+
+spring:
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
+
+logging:
+  level:
+    com.moretale: debug
+    org.hibernate.SQL: debug
+    org.hibernate.orm.jdbc.bind: trace

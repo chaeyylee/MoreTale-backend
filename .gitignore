@@ -1,0 +1,33 @@
+# Java
+*.class
+
+# Gradle
+.gradle/
+.gradle-home/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# 환경 파일
+.env
+application-local.yml
+
+# Google Cloud Credentials
+gcp-service-account.json
+**/gcp-service-account.json
+
+# Copilot local config
+.github/copilot-instructions.md

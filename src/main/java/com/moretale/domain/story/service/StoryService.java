@@ -1,0 +1,529 @@
+package com.moretale.domain.story.service;
+
+import com.moretale.domain.profile.entity.Language;
+import com.moretale.domain.profile.entity.StoryPreference;
+import com.moretale.domain.profile.entity.UserProfile;
+import com.moretale.domain.profile.repository.UserProfileRepository;
+import com.moretale.domain.story.dto.StoryGenerateRequest;
+import com.moretale.domain.story.dto.StoryGenerateResponse;
+import com.moretale.domain.story.dto.StoryGenerationJobResponse;
+import com.moretale.domain.story.dto.StoryInitResponse;
+import com.moretale.domain.story.dto.StoryListResponse;
+import com.moretale.domain.story.dto.StoryResponse;
+import com.moretale.domain.story.dto.StorySaveRequest;
+import com.moretale.domain.story.dto.StoryShareRequest;
+import com.moretale.domain.story.dto.VocabularyItem;
+import com.moretale.domain.story.entity.Slide;
+import com.moretale.domain.story.entity.Story;
+import com.moretale.domain.story.entity.StoryToken;
+import com.moretale.domain.story.enums.TraditionalTale;
+import com.moretale.domain.story.repository.StoryRepository;
+import com.moretale.domain.user.entity.User;
+import com.moretale.domain.user.repository.UserRepository;
+import com.moretale.global.config.MoreTaleProperties;
+import com.moretale.global.exception.BusinessException;
+import com.moretale.global.exception.ErrorCode;
+import jakarta.persistence.EntityManager;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class StoryService {
+
+    private final StoryRepository storyRepository;
+    private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
+    private final AIStoryService aiStoryService;
+    private final StoryTokenService storyTokenService;
+    private final MoreTaleProperties properties;
+    private final EntityManager em;
+
+    // 온보딩 데이터 기반 동화 생성 초기값 조회
+    // GET /api/stories/init
+    public StoryInitResponse getStoryInitData(Long userId, Long profileId) {
+        User user = getUserById(userId);
+        UserProfile profile = getUserProfile(user, profileId);
+
+        // 이야기 선호도에 맞는 전래동화 자동 매핑
+        TraditionalTale recommendedTale;
+
+        if (profile.getStoryPreference() == StoryPreference.CUSTOM
+                && profile.getCustomStoryPreference() != null) {
+            recommendedTale = TraditionalTale.findByCustomText(profile.getCustomStoryPreference());
+        } else {
+            recommendedTale = TraditionalTale.findByPreference(profile.getStoryPreference());
+        }
+
+        // recommendedTaleTitle과 일치하는 동화 기준으로 storyId + coverImageUrl 조회
+        //
+        // init API는 온보딩 추천 전래동화 기반이므로
+        // storyId / coverImageUrl도 recommendedTaleTitle과 같은 동화여야 의미가 맞음
+        //
+        // [1차] profileId + title 기반 정확 조회
+        // [2차] profile_id = NULL 기존 데이터 fallback (userId + title 기반)
+        Pageable latestOne = PageRequest.of(0, 1);
+        String recommendedTitle = recommendedTale.getTitle();
+
+        List<Long> storyIds = storyRepository.findLatestStoryIdByProfileAndTitle(
+                userId, profile.getProfileId(), recommendedTitle, latestOne
+        );
+
+        if (storyIds.isEmpty()) {
+            storyIds = storyRepository.findLatestStoryIdByUserAndTitle(
+                    userId, recommendedTitle, latestOne
+            );
+        }
+
+        Long resolvedStoryId = null;
+        String coverImageUrl = null;
+
+        if (!storyIds.isEmpty()) {
+            resolvedStoryId = storyIds.get(0);
+
+            List<Story> stories = storyRepository.fetchByIdsWithSlides(storyIds);
+            if (!stories.isEmpty() && !stories.get(0).getSlides().isEmpty()) {
+                coverImageUrl = stories.get(0).getSlides().get(0).getImageUrl();
+            }
+        }
+
+        log.info("동화 초기값 조회 - userId={}, profileId={}, 추천 전래동화={}, storyId={}",
+                userId, profile.getProfileId(), recommendedTitle, resolvedStoryId);
+
+        return StoryInitResponse.from(
+                profile,
+                recommendedTitle,
+                resolvedStoryId,
+                coverImageUrl
+        );
+    }
+
+    // 비동기 동화 생성 작업 등록
+    @Transactional
+    public StoryGenerationJobResponse enqueueStoryGeneration(Long userId, StoryGenerateRequest request) {
+        StoryGenerateRequest aiRequest = buildAiStoryRequest(userId, request);
+        return aiStoryService.enqueueStoryJob(
+                aiRequest,
+                buildAiCallbackUrl(),
+                UUID.randomUUID().toString()
+        );
+    }
+
+    // 온보딩 직후 자동 동화 생성 작업 등록
+    @Transactional
+    public StoryGenerationJobResponse enqueueAutoStoryGeneration(Long userId, Long profileId) {
+        User user = getUserById(userId);
+        UserProfile profile = getUserProfile(user, profileId);
+        TraditionalTale tale = resolveTraditionalTale(profile);
+        String basePrompt = (tale == TraditionalTale.CUSTOM && profile.getCustomStoryPreference() != null)
+                ? profile.getCustomStoryPreference()
+                : tale.getDescription();
+
+        StoryGenerateRequest autoRequest = StoryGenerateRequest.builder()
+                .prompt(basePrompt)
+                .profileId(profile.getProfileId())
+                .childName(profile.getChildName())
+                .primaryLanguage(resolvePrimaryLanguage(profile))
+                .secondaryLanguage(resolveSecondaryLanguage(profile))
+                .ageGroup(profile.getAgeGroup())
+                .childAge(profile.getChildAge())
+                .firstLanguageProficiency(profile.getFirstLanguageProficiency())
+                .secondLanguageProficiency(profile.getSecondLanguageProficiency())
+                .firstLanguageListening(profile.getFirstLanguageListening())
+                .firstLanguageSpeaking(profile.getFirstLanguageSpeaking())
+                .secondLanguageListening(profile.getSecondLanguageListening())
+                .secondLanguageSpeaking(profile.getSecondLanguageSpeaking())
+                .storyPreference(profile.getStoryPreference())
+                .customStoryPreference(profile.getCustomStoryPreference())
+                .autoGenerated(true)
+                .recommendedTaleTitle(tale.getTitle())
+                .build();
+        return enqueueStoryGeneration(userId, autoRequest);
+    }
+
+    public StoryGenerationJobResponse getGenerationJob(String jobId) {
+        return aiStoryService.getStoryJobStatus(jobId);
+    }
+
+    public StoryGenerateResponse getGenerationJobResult(String jobId) {
+        return aiStoryService.getStoryJobResult(jobId);
+    }
+
+    // 동화 저장
+    @Transactional
+    public StoryResponse saveStory(Long userId, StorySaveRequest request) {
+        User user = getUserById(userId);
+
+        UserProfile profile = userProfileRepository.findById(request.getProfileId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_NOT_FOUND));
+
+        // 엔티티 equals() 비교 제거 → userId 기반 비교
+        if (!profile.getUser().getUserId().equals(userId)) {
+            log.warn("보안 위반 시도 - 요청 userId={}가 userId={}의 프로필 {}을 사용하려고 함",
+                    userId, profile.getUser().getUserId(), profile.getProfileId());
+            throw new BusinessException(ErrorCode.STORY_ACCESS_DENIED);
+        }
+
+        String sourceLanguage = resolvePrimaryLanguage(profile);
+        String targetLanguage = resolveSecondaryLanguage(profile);
+
+        List<StorySaveRequest.SlideRequest> slideRequests =
+                request.getSlides() != null ? request.getSlides() : List.of();
+
+        for (int i = 0; i < slideRequests.size(); i++) {
+            StorySaveRequest.SlideRequest s = slideRequests.get(i);
+
+            log.info(
+                    "[saveStory] vocabulary 원본 확인 - index={}, order={}, vocabulary={}",
+                    i,
+                    s.getOrder(),
+                    s.getVocabulary()
+            );
+        }
+
+        log.info("[saveStory] 슬라이드 수신 - storyTitle={}, totalSlides={}",
+                request.getTitle(), slideRequests.size());
+
+        for (int i = 0; i < slideRequests.size(); i++) {
+            StorySaveRequest.SlideRequest slideReq = slideRequests.get(i);
+
+            log.info("[saveStory] 수신 슬라이드[{}] - order={}, imageUrl={}, textKrBlank={}, textNativeBlank={}, "
+                            + "audioUrlKr={}, audioUrlNative={}, vocabularySize={}, isCoverCandidate={}",
+                    i,
+                    slideReq.getOrder(),
+                    maskUrl(slideReq.getImageUrl()),
+                    slideReq.getTextKr() == null || slideReq.getTextKr().isBlank(),
+                    slideReq.getTextNative() == null || slideReq.getTextNative().isBlank(),
+                    slideReq.getAudioUrlKr() != null ? "있음" : "null",
+                    slideReq.getAudioUrlNative() != null ? "있음" : "null",
+                    slideReq.getVocabulary() != null ? slideReq.getVocabulary().size() : 0,
+                    isCoverSlide(slideReq));
+        }
+
+        boolean aiIncludesCover = !slideRequests.isEmpty() && isCoverSlide(slideRequests.get(0));
+
+        log.info("[saveStory] 커버 슬라이드 포함 여부 - aiIncludesCover={}", aiIncludesCover);
+
+        if (!aiIncludesCover) {
+            log.warn("[saveStory] AI 응답에 커버 슬라이드가 없음. 현재 요청에 포함된 슬라이드만 저장합니다. firstSlideTextKr={}",
+                    slideRequests.isEmpty() ? "N/A" : slideRequests.get(0).getTextKr());
+        }
+
+        Story story = Story.builder()
+                .title(request.getTitle())
+                .prompt(request.getPrompt())
+                .user(user)
+                .profile(profile)
+                .childName(profile.getChildName())
+                .primaryLanguage(sourceLanguage)
+                .secondaryLanguage(targetLanguage)
+                .isPublic(false)
+                .build();
+
+        for (StorySaveRequest.SlideRequest slideReq : slideRequests) {
+            Slide slide = Slide.builder()
+                    .order(slideReq.getOrder())
+                    .imageUrl(slideReq.getImageUrl())
+                    .textKr(slideReq.getTextKr() != null ? slideReq.getTextKr() : "")
+                    .textNative(slideReq.getTextNative() != null ? slideReq.getTextNative() : "")
+                    .audioUrlKr(slideReq.getAudioUrlKr())
+                    .audioUrlNative(slideReq.getAudioUrlNative())
+                    .build();
+
+            story.addSlide(slide);
+
+            log.debug("[saveStory] Slide 엔티티 생성 - order={}, isCover={}",
+                    slideReq.getOrder(), isCoverSlide(slideReq));
+        }
+
+        // Story + Slide 먼저 저장 (slide_id 획득 필요)
+        Story savedStory = storyRepository.save(story);
+
+        // 1차 flush: Story + Slide INSERT, slideId 확보
+        em.flush();
+
+        log.info("[saveStory] Story+Slide 저장 완료 - storyId={}, savedSlideCount={}",
+                savedStory.getStoryId(), savedStory.getSlides().size());
+
+        Map<Integer, List<VocabularyItem>> vocabularyByOrder = slideRequests.stream()
+                .filter(req -> req.getOrder() != null)
+                .filter(req -> req.getVocabulary() != null && !req.getVocabulary().isEmpty())
+                .collect(Collectors.toMap(
+                        StorySaveRequest.SlideRequest::getOrder,
+                        StorySaveRequest.SlideRequest::getVocabulary,
+                        (existing, replacement) -> existing
+                ));
+
+        log.info("[saveStory] vocabulary 매핑 - storyTitle={}, 총 슬라이드={}, vocabulary 포함 슬라이드={}, 커버 제외 본문 슬라이드={}",
+                request.getTitle(),
+                slideRequests.size(),
+                vocabularyByOrder.size(),
+                slideRequests.size() - (aiIncludesCover ? 1 : 0));
+
+        // 슬라이드별 토큰 생성 및 연결
+        savedStory.getSlides().forEach(slide -> {
+            if (isSavedCoverSlide(slide)) {
+                log.info("[saveStory] 커버 슬라이드 토큰 생성 건너뜀 - slideId={}, order={}",
+                        slide.getSlideId(), slide.getOrder());
+                return;
+            }
+
+            List<VocabularyItem> vocabulary = vocabularyByOrder.get(slide.getOrder());
+
+            log.info("[saveStory] 슬라이드 토큰 처리 - slideId={}, order={}, vocabularySize={}",
+                    slide.getSlideId(),
+                    slide.getOrder(),
+                    vocabulary != null ? vocabulary.size() : 0);
+
+            if (vocabulary == null || vocabulary.isEmpty()) {
+                log.warn("[saveStory] vocabulary 없음 - slideId={}, order={} → 토큰 생성 건너뜀",
+                        slide.getSlideId(), slide.getOrder());
+                return;
+            }
+
+            try {
+                List<StoryToken> tokens = storyTokenService.generateTokensForSlide(
+                        slide, vocabulary, sourceLanguage, targetLanguage
+                );
+
+                tokens.forEach(slide::addToken);
+
+                log.info("[saveStory] 토큰 생성 완료 - slideId={}, order={}, tokenCount={}",
+                        slide.getSlideId(), slide.getOrder(), tokens.size());
+            } catch (Exception e) {
+                log.error("[saveStory] 토큰 생성 실패 (건너뜀) - slideId={}, order={}",
+                        slide.getSlideId(), slide.getOrder(), e);
+            }
+        });
+
+        // 2차 flush: StoryToken INSERT
+        em.flush();
+
+        long coverCount = savedStory.getSlides().stream()
+                .filter(this::isSavedCoverSlide)
+                .count();
+
+        long contentCount = savedStory.getSlides().size() - coverCount;
+
+        long tokenCount = savedStory.getSlides().stream()
+                .mapToLong(slide -> slide.getTokens().size())
+                .sum();
+
+        log.info("[saveStory] 저장 완료 요약 - storyId={}, userId={}, 총 슬라이드={} (커버={}, 본문={}), 총 토큰={}",
+                savedStory.getStoryId(),
+                userId,
+                savedStory.getSlides().size(),
+                coverCount,
+                contentCount,
+                tokenCount);
+
+        return StoryResponse.from(savedStory);
+    }
+
+    // 특정 동화 상세 조회 (슬라이드 포함)
+    public StoryResponse getStoryDetail(Long userId, Long storyId) {
+        Story story = storyRepository.findByIdWithSlides(storyId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORY_NOT_FOUND));
+
+        // story.getUser().equals(user) → userId 기반 비교
+        boolean isOwner = story.getUser().getUserId().equals(userId);
+        if (!isOwner && !story.getIsPublic()) {
+            throw new BusinessException(ErrorCode.STORY_ACCESS_DENIED);
+        }
+
+        return StoryResponse.from(story);
+    }
+
+    // 내 동화 목록 조회
+    public List<StoryListResponse> getMyStories(Long userId) {
+        // User 엔티티 조회 없이 userId 기반 Repository 쿼리 직접 사용
+        return storyRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(StoryListResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    // 공개 동화 목록 조회
+    public List<StoryListResponse> getPublicStories() {
+        return storyRepository.findByIsPublicTrueOrderByCreatedAtDesc()
+                .stream()
+                .map(StoryListResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    // 동화 공유 설정 변경
+    @Transactional
+    public void updateStoryShareStatus(Long userId, Long storyId, StoryShareRequest request) {
+        // User 엔티티 조회 없이 userId + storyId 기반으로 직접 조회
+        Story story = storyRepository.findByStoryIdAndUserId(storyId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORY_NOT_FOUND));
+
+        story.setIsPublic(request.getIsPublic());
+    }
+
+    // 동화 삭제
+    @Transactional
+    public void deleteStory(Long userId, Long storyId) {
+        // User 엔티티 조회 없이 userId + storyId 기반으로 직접 조회
+        Story story = storyRepository.findByStoryIdAndUserId(storyId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORY_NOT_FOUND));
+
+        storyRepository.delete(story);
+    }
+
+    // userId로 사용자 조회
+    private User getUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private UserProfile getUserProfile(User user, Long profileId) {
+        if (profileId != null) {
+            return userProfileRepository
+                    .findByProfileIdAndUser_UserId(profileId, user.getUserId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_NOT_FOUND));
+        }
+
+        return userProfileRepository
+                .findFirstByUserOrderByCreatedAtDesc(user)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROFILE_NOT_FOUND));
+    }
+
+    private StoryGenerateRequest buildAiStoryRequest(Long userId, StoryGenerateRequest request) {
+        User user = getUserById(userId);
+        UserProfile profile = getUserProfile(user, request.getProfileId());
+
+        String childName = request.getChildName() != null
+                ? request.getChildName() : profile.getChildName();
+        String primaryLang = request.getPrimaryLanguage() != null
+                ? request.getPrimaryLanguage() : resolvePrimaryLanguage(profile);
+        String secondaryLang = request.getSecondaryLanguage() != null
+                ? request.getSecondaryLanguage() : resolveSecondaryLanguage(profile);
+
+        return StoryGenerateRequest.builder()
+                .prompt(request.getPrompt())
+                .profileId(profile.getProfileId())
+                .childName(childName)
+                .primaryLanguage(primaryLang)
+                .secondaryLanguage(secondaryLang)
+                .ageGroup(request.getAgeGroup() != null ? request.getAgeGroup() : profile.getAgeGroup())
+                .childAge(request.getChildAge() != null ? request.getChildAge() : profile.getChildAge())
+                .firstLanguageProficiency(request.getFirstLanguageProficiency() != null
+                        ? request.getFirstLanguageProficiency() : profile.getFirstLanguageProficiency())
+                .secondLanguageProficiency(request.getSecondLanguageProficiency() != null
+                        ? request.getSecondLanguageProficiency() : profile.getSecondLanguageProficiency())
+                .firstLanguageListening(request.getFirstLanguageListening() != null
+                        ? request.getFirstLanguageListening() : profile.getFirstLanguageListening())
+                .firstLanguageSpeaking(request.getFirstLanguageSpeaking() != null
+                        ? request.getFirstLanguageSpeaking() : profile.getFirstLanguageSpeaking())
+                .secondLanguageListening(request.getSecondLanguageListening() != null
+                        ? request.getSecondLanguageListening() : profile.getSecondLanguageListening())
+                .secondLanguageSpeaking(request.getSecondLanguageSpeaking() != null
+                        ? request.getSecondLanguageSpeaking() : profile.getSecondLanguageSpeaking())
+                .storyPreference(request.getStoryPreference() != null
+                        ? request.getStoryPreference() : profile.getStoryPreference())
+                .customStoryPreference(request.getCustomStoryPreference() != null
+                        ? request.getCustomStoryPreference() : profile.getCustomStoryPreference())
+                .autoGenerated(request.getAutoGenerated())
+                .recommendedTaleTitle(request.getRecommendedTaleTitle())
+                .build();
+    }
+
+    private String buildAiCallbackUrl() {
+        String baseUrl = properties.getAi().getCallbackBaseUrl();
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return "http://localhost:8080/internal/ai/story/callbacks";
+        }
+        return baseUrl.replaceAll("/+$", "") + "/internal/ai/story/callbacks";
+    }
+
+    private TraditionalTale resolveTraditionalTale(UserProfile profile) {
+        if (profile.getStoryPreference() == StoryPreference.CUSTOM
+                && profile.getCustomStoryPreference() != null) {
+            return TraditionalTale.findByCustomText(profile.getCustomStoryPreference());
+        }
+        return TraditionalTale.findByPreference(profile.getStoryPreference());
+    }
+
+    /**
+     * Story/TTS/토큰 생성 등 기존 문자열 기반 로직에서 사용할 첫 번째 언어 문자열 반환
+     * - 일반 언어: ISO 코드 반환 (ko, en, ja ...)
+     * - OTHER: 사용자가 직접 입력한 문자열 반환
+     * - null: 기본값 ko
+     */
+    private String resolvePrimaryLanguage(UserProfile profile) {
+        if (profile.getFirstLanguage() == null) {
+            return "ko";
+        }
+
+        if (profile.getFirstLanguage() == Language.OTHER) {
+            return profile.getCustomFirstLanguage() != null && !profile.getCustomFirstLanguage().isBlank()
+                    ? profile.getCustomFirstLanguage()
+                    : "other";
+        }
+
+        return profile.getFirstLanguage().getIsoCode();
+    }
+
+    /**
+     * Story/TTS/토큰 생성 등 기존 문자열 기반 로직에서 사용할 두 번째 언어 문자열 반환
+     * - 일반 언어: ISO 코드 반환 (ko, en, ja ...)
+     * - OTHER: 사용자가 직접 입력한 문자열 반환
+     * - null: 기본값 en
+     */
+    private String resolveSecondaryLanguage(UserProfile profile) {
+        if (profile.getSecondLanguage() == null) {
+            return "en";
+        }
+
+        if (profile.getSecondLanguage() == Language.OTHER) {
+            return profile.getCustomSecondLanguage() != null && !profile.getCustomSecondLanguage().isBlank()
+                    ? profile.getCustomSecondLanguage()
+                    : "other";
+        }
+
+        return profile.getSecondLanguage().getIsoCode();
+    }
+
+    private boolean isCoverSlide(StorySaveRequest.SlideRequest slideReq) {
+        if (slideReq == null || slideReq.getOrder() == null || slideReq.getOrder() != 0) {
+            return false;
+        }
+
+        boolean textKrEmpty = slideReq.getTextKr() == null || slideReq.getTextKr().isBlank();
+        boolean textNativeEmpty = slideReq.getTextNative() == null || slideReq.getTextNative().isBlank();
+
+        return textKrEmpty && textNativeEmpty;
+    }
+
+    private boolean isSavedCoverSlide(Slide slide) {
+        if (slide == null || slide.getOrder() == null || slide.getOrder() != 0) {
+            return false;
+        }
+
+        boolean textKrEmpty = slide.getTextKr() == null || slide.getTextKr().isBlank();
+        boolean textNativeEmpty = slide.getTextNative() == null || slide.getTextNative().isBlank();
+
+        return textKrEmpty && textNativeEmpty;
+    }
+
+    private String maskUrl(String url) {
+        if (url == null) {
+            return "null";
+        }
+
+        int start = Math.max(0, url.length() - 40);
+        return url.substring(start);
+    }
+}

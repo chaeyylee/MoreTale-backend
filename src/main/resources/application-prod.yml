@@ -1,0 +1,46 @@
+# =============================================
+# 운영 환경 전용 오버라이드 (Render / GCP / Docker)
+# 민감값은 없고 환경변수 참조만 사용
+# =============================================
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_batch_fetch_size: 100
+
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    root: warn
+    com.moretale: info
+    org.hibernate.SQL: warn
+    org.hibernate.orm.jdbc.bind: warn
+
+moretale:
+  cors:
+    allowed-origins:
+      - https://moretale.vercel.app
+      - http://localhost:5173
+      - http://localhost:3000
