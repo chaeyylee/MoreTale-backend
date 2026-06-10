@@ -378,7 +378,9 @@ MoreTale-backend
 │   │       └── data.sql
 │   │
 │   └── test
-│       └── java
+│       ├── domain
+│       ├── support
+│       └── resources
 │
 ├── .env (not included in github repo)
 ├── build.gradle

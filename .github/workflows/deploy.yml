@@ -3,7 +3,7 @@ name: Deploy MoreTale Backend
 on:
   push:
     branches:
-      - develop
+      - main
 
 env:
   PROJECT_ID: project-640335ef-3b09-441e-a26
