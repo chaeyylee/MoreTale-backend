@@ -17,12 +17,11 @@ class UserProfileEntityTest {
         testUser = User.builder().userId(1L).email("test@example.com").build();
     }
 
-    // ────────────────── calculateChildAge (@PrePersist/@PreUpdate) ──────────────────
-
     @Test
     @DisplayName("calculateChildAge - ageGroup으로 childAge 자동 계산")
     void calculateChildAge_setsRepresentativeAge() {
         UserProfile profile = buildProfile(AgeGroup.AGE_5_6);
+        profile.setChildAge(null);
         profile.calculateChildAge();
 
         assertThat(profile.getChildAge()).isEqualTo(5);
@@ -32,6 +31,7 @@ class UserProfileEntityTest {
     @DisplayName("calculateChildAge - AGE_0_2 → childAge = 1")
     void calculateChildAge_age0to2() {
         UserProfile profile = buildProfile(AgeGroup.AGE_0_2);
+        profile.setChildAge(null);
         profile.calculateChildAge();
 
         assertThat(profile.getChildAge()).isEqualTo(1);
@@ -47,8 +47,6 @@ class UserProfileEntityTest {
         assertThat(AgeGroup.AGE_9_10.getRepresentativeAge()).isEqualTo(9);
         assertThat(AgeGroup.AGE_10_PLUS.getRepresentativeAge()).isEqualTo(10);
     }
-
-    // ────────────────── syncLegacyLanguages ──────────────────
 
     @Test
     @DisplayName("syncLegacyLanguages - KO → primaryLanguage = KO")
@@ -88,8 +86,6 @@ class UserProfileEntityTest {
 
         assertThat(profile.getPrimaryLanguage()).isEqualTo("OTHER");
     }
-
-    // ────────────────── getFirstLanguageDisplay ──────────────────
 
     @Test
     @DisplayName("getFirstLanguageDisplay - 각 Enum 값 표시명 검증")
@@ -135,8 +131,6 @@ class UserProfileEntityTest {
         assertThat(profile.getFirstLanguageDisplay()).isEqualTo("기타");
     }
 
-    // ────────────────── updateProfile ──────────────────
-
     @Test
     @DisplayName("updateProfile - OTHER → KO 변경 시 customFirstLanguage null 처리")
     void updateProfile_otherToKo_clearsCustomLanguage() {
@@ -145,7 +139,7 @@ class UserProfileEntityTest {
         profile.setCustomFirstLanguage("태국어");
 
         profile.updateProfile(
-                "민준", AgeGroup.AGE_7_8,
+                "민준", AgeGroup.AGE_7_8, 7,
                 Language.KO, "이 값은 무시돼야 함", LanguageProficiency.BEE,
                 Language.VI, null, LanguageProficiency.LARVA,
                 LanguageProficiency.BEE, LanguageProficiency.PUPA,
@@ -168,20 +162,20 @@ class UserProfileEntityTest {
         profile.setCustomFamilyStructure("조부모님과 살아요");
 
         profile.updateProfile(
-                "민준", AgeGroup.AGE_5_6,
+                "민준", AgeGroup.AGE_5_6, 6,
                 Language.KO, null, LanguageProficiency.BEE,
                 Language.VI, null, LanguageProficiency.LARVA,
                 LanguageProficiency.BEE, LanguageProficiency.PUPA,
                 LanguageProficiency.LARVA, LanguageProficiency.EGG,
                 FamilyStructure.TWO_PARENTS, "이 값 무시",
-                StoryPreference.FUN_ADVENTURE, null, null, null
+                StoryPreference.FUN_ADVENTURE, null,
+                null, null
         );
 
         assertThat(profile.getFamilyStructure()).isEqualTo(FamilyStructure.TWO_PARENTS);
         assertThat(profile.getCustomFamilyStructure()).isNull();
+        assertThat(profile.getChildAge()).isEqualTo(6);
     }
-
-    // ────────────────── 헬퍼 ──────────────────
 
     private UserProfile buildProfile(AgeGroup ageGroup) {
         return UserProfile.builder()

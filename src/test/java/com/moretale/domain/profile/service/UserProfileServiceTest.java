@@ -223,9 +223,8 @@ class UserProfileServiceTest {
 
         UserProfileResponse response = userProfileService.updateLanguage(10L, request);
 
-        assertThat(response.getFirstLanguage()).isEqualTo(Language.EN);
-        assertThat(response.getSecondLanguage()).isEqualTo(Language.JA);
-        assertThat(response.getCustomFirstLanguage()).isNull();
+        assertThat(response.getFirstLanguageDisplay()).isEqualTo("영어");
+        assertThat(response.getSecondLanguageDisplay()).isEqualTo("일본어");
     }
 
     @Test
@@ -243,8 +242,7 @@ class UserProfileServiceTest {
 
         UserProfileResponse response = userProfileService.updateLanguage(10L, request);
 
-        assertThat(response.getSecondLanguage()).isEqualTo(Language.OTHER);
-        assertThat(response.getCustomSecondLanguage()).isEqualTo("태국어");
+        assertThat(response.getSecondLanguageDisplay()).isEqualTo("태국어");
     }
 
     @Test
@@ -359,6 +357,7 @@ class UserProfileServiceTest {
         return UserProfileRequest.builder()
                 .childName("민준")
                 .ageGroup(AgeGroup.AGE_5_6)
+                .childAge(5)
                 .firstLanguage(Language.KO)
                 .secondLanguage(Language.VI)
                 .firstLanguageProficiency(LanguageProficiency.BEE)
