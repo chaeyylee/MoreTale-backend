@@ -2,7 +2,6 @@ package com.moretale.domain.profile.dto;
 
 import com.moretale.domain.profile.entity.AgeGroup;
 import com.moretale.domain.profile.entity.FamilyStructure;
-import com.moretale.domain.profile.entity.Language;
 import com.moretale.domain.profile.entity.LanguageProficiency;
 import com.moretale.domain.profile.entity.StoryPreference;
 import com.moretale.domain.profile.entity.UserProfile;
@@ -41,26 +40,8 @@ public class UserProfileResponse {
     @Schema(description = "나이 그룹", example = "AGE_5_6")
     private AgeGroup ageGroup;
 
-    @Schema(description = "첫 번째 언어 Enum", example = "KO")
-    private Language firstLanguage;
-
-    @Schema(
-            description = "첫 번째 언어 직접 입력값 (OTHER 선택 시에만 반환, 일반 언어 선택 시 null)",
-            nullable = true
-    )
-    private String customFirstLanguage;
-
     @Schema(description = "첫 번째 언어 표시명", example = "한국어")
     private String firstLanguageDisplay;
-
-    @Schema(description = "두 번째 언어 Enum", example = "VI")
-    private Language secondLanguage;
-
-    @Schema(
-            description = "두 번째 언어 직접 입력값 (OTHER 선택 시에만 반환, 일반 언어 선택 시 null)",
-            nullable = true
-    )
-    private String customSecondLanguage;
 
     @Schema(description = "두 번째 언어 표시명", example = "베트남어")
     private String secondLanguageDisplay;
@@ -125,11 +106,7 @@ public class UserProfileResponse {
                 .childName(profile.getChildName())
                 .childAge(profile.getChildAge())
                 .ageGroup(profile.getAgeGroup())
-                .firstLanguage(profile.getFirstLanguage())
-                .customFirstLanguage(profile.getCustomFirstLanguage())
                 .firstLanguageDisplay(profile.getFirstLanguageDisplay())
-                .secondLanguage(profile.getSecondLanguage())
-                .customSecondLanguage(profile.getCustomSecondLanguage())
                 .secondLanguageDisplay(profile.getSecondLanguageDisplay())
                 .firstLanguageProficiency(profile.getFirstLanguageProficiency())
                 .secondLanguageProficiency(profile.getSecondLanguageProficiency())

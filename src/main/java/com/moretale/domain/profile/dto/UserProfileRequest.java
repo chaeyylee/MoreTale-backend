@@ -27,6 +27,12 @@ public class UserProfileRequest implements LanguageValidatable {
     @Schema(description = "나이 그룹", example = "AGE_5_6")
     private AgeGroup ageGroup;
 
+    @NotNull(message = "아이 실제 나이는 필수입니다.")
+    @Min(value = 0, message = "아이 나이는 0세 이상이어야 합니다.")
+    @Max(value = 20, message = "아이 나이는 15세 이하여야 합니다.")
+    @Schema(description = "아이 실제 나이", example = "5")
+    private Integer childAge;
+
     @NotNull(message = "제1언어는 필수입니다.")
     @Schema(description = "제1언어 (KO/EN/JA/ZH/ES/VI/OTHER)", example = "KO")
     private Language firstLanguage;
@@ -112,12 +118,4 @@ public class UserProfileRequest implements LanguageValidatable {
             example = "VI"
     )
     private String secondaryLanguage;
-
-    @Deprecated
-    @Schema(
-            description = "[Deprecated] ageGroup으로 자동 계산됨",
-            deprecated = true,
-            example = "5"
-    )
-    private Integer childAge;
 }

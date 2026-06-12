@@ -106,6 +106,7 @@ public class UserProfileService {
                 .user(user)
                 .childName(request.getChildName())
                 .ageGroup(request.getAgeGroup())
+                .childAge(request.getChildAge())
                 .firstLanguage(request.getFirstLanguage())
                 .customFirstLanguage(customFirst)
                 .firstLanguageProficiency(request.getFirstLanguageProficiency())
@@ -172,6 +173,7 @@ public class UserProfileService {
         profile.updateProfile(
                 request.getChildName(),
                 request.getAgeGroup(),
+                request.getChildAge(),
                 request.getFirstLanguage(),
                 request.getCustomFirstLanguage(),
                 request.getFirstLanguageProficiency(),

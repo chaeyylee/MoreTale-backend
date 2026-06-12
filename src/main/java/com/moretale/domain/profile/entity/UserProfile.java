@@ -34,7 +34,7 @@ public class UserProfile {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user; // 부모 엔티티(User)와의 다대일 연관관계 설정
+    private User user;
 
     @Column(name = "child_name", nullable = false, length = 50)
     private String childName;
@@ -147,7 +147,7 @@ public class UserProfile {
     @PrePersist
     @PreUpdate
     public void calculateChildAge() {
-        if (this.ageGroup != null) {
+        if (this.childAge == null && this.ageGroup != null) {
             this.childAge = this.ageGroup.getRepresentativeAge();
         }
         // 저장/수정 시 항상 Legacy 필드 동기화
@@ -192,6 +192,7 @@ public class UserProfile {
     public void updateProfile(
             String childName,
             AgeGroup ageGroup,
+            Integer childAge,
             Language firstLanguage,
             String customFirstLanguage,
             LanguageProficiency firstLanguageProficiency,
@@ -211,8 +212,7 @@ public class UserProfile {
     ) {
         this.childName = childName;
         this.ageGroup = ageGroup;
-        // 나이 그룹의 대표값으로 childAge 갱신
-        this.childAge = ageGroup.getRepresentativeAge();
+        this.childAge = childAge;
 
         this.firstLanguage = firstLanguage;
         // OTHER가 아닌 경우 customFirstLanguage는 null 처리
@@ -222,8 +222,8 @@ public class UserProfile {
 
         this.secondLanguage = secondLanguage;
         this.customSecondLanguage = (secondLanguage == Language.OTHER) ? customSecondLanguage : null;
-
         this.secondLanguageProficiency = secondLanguageProficiency;
+
         this.firstLanguageListening = firstLanguageListening;
         this.firstLanguageSpeaking = firstLanguageSpeaking;
         this.secondLanguageListening = secondLanguageListening;
