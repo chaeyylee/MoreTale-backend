@@ -33,7 +33,7 @@ public enum TraditionalTale {
     TIGER_AND_PERSIMMON("호랑이와 곶감", StoryPreference.DAILY_LIFE,
             "호랑이가 곶감을 무서워한 이야기"),
 
-    // 직접 적을래요 (기본값) - 전래동화 없음
+    // 직접 적을래요 (기본값)
     CUSTOM("사용자 맞춤 이야기", StoryPreference.CUSTOM,
             "사용자가 직접 입력한 주제");
 
@@ -41,45 +41,47 @@ public enum TraditionalTale {
     private final StoryPreference preference;
     private final String description;
 
-    // StoryPreference에 맞는 전래동화 자동 선택
+    /**
+     * StoryPreference에 맞는 전래동화 자동 선택
+     *
+     * 현재 운영 기준:
+     * - 포근한 이야기 → 흥부와 놀부
+     * - 신나는 모험 이야기 → 호랑이와 곶감
+     * - 오늘 하루를 닮은 이야기 → 호랑이와 곶감
+     * - 직접 입력 / null → 흥부와 놀부
+     */
     public static TraditionalTale findByPreference(StoryPreference preference) {
         if (preference == null || preference == StoryPreference.CUSTOM) {
-            return CUSTOM;  // CUSTOM은 전래동화 없이 사용자 맞춤으로 진행
+            return HEUNGBU_NOLBU;
         }
 
-        return Arrays.stream(values())
-                .filter(tale -> tale.getPreference() == preference)
-                .findFirst()
-                .orElse(HEUNGBU_NOLBU); // 기본값
+        return switch (preference) {
+            case WARM_HUG -> HEUNGBU_NOLBU;
+            case FUN_ADVENTURE, DAILY_LIFE -> TIGER_AND_PERSIMMON;
+            case CUSTOM -> HEUNGBU_NOLBU;
+        };
     }
 
-    // customStoryPreference 텍스트 기반 전래동화 추천 (선택적)
-    // "우주", "탐험", "모험" 키워드 → FUN_ADVENTURE 계열
+    /**
+     * customStoryPreference 텍스트 기반 전래동화 추천
+     *
+     * 현재 운영 기준:
+     * - 포근/따뜻/사랑 계열 → 흥부와 놀부
+     * - 그 외 직접 입력 → 호랑이와 곶감
+     */
     public static TraditionalTale findByCustomText(String customText) {
         if (customText == null || customText.isBlank()) {
-            return CUSTOM;
+            return HEUNGBU_NOLBU;
         }
 
         String text = customText.toLowerCase();
 
-        // 모험 키워드
-        if (text.contains("우주") || text.contains("탐험") || text.contains("모험") ||
-                text.contains("외계인") || text.contains("행성")) {
-            return GOLD_AXE_SILVER_AXE;  // 모험 계열 전래동화
-        }
-
-        // 포근함 키워드
         if (text.contains("포근") || text.contains("안아") || text.contains("따뜻") ||
                 text.contains("사랑")) {
-            return HEUNGBU_NOLBU;  // 포근한 전래동화
+            return HEUNGBU_NOLBU;
         }
 
-        // 일상 키워드
-        if (text.contains("일상") || text.contains("하루") || text.contains("가족")) {
-            return SUN_AND_MOON;  // 일상 전래동화
-        }
-
-        return CUSTOM;  // 매칭 안 되면 맞춤형
+        return TIGER_AND_PERSIMMON;
     }
 
     // 제목으로 전래동화 찾기

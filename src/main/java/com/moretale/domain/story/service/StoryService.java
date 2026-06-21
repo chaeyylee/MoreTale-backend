@@ -73,6 +73,7 @@ public class StoryService {
         //
         // [1차] profileId + title 기반 정확 조회
         // [2차] profile_id = NULL 기존 데이터 fallback (userId + title 기반)
+        // [3차] 현재 사용자에게 없으면 공개 전래동화 fallback (isPublic=true + title 기반)
         Pageable latestOne = PageRequest.of(0, 1);
         String recommendedTitle = recommendedTale.getTitle();
 
@@ -83,6 +84,12 @@ public class StoryService {
         if (storyIds.isEmpty()) {
             storyIds = storyRepository.findLatestStoryIdByUserAndTitle(
                     userId, recommendedTitle, latestOne
+            );
+        }
+
+        if (storyIds.isEmpty()) {
+            storyIds = storyRepository.findLatestPublicStoryIdByTitle(
+                    recommendedTitle, latestOne
             );
         }
 

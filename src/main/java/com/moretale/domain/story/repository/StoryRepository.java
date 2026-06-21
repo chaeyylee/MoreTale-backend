@@ -148,6 +148,23 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
     );
 
     /**
+     * /api/stories/init 용 — 공개 전래동화 fallback
+     *
+     * 현재 사용자에게 추천 전래동화가 없을 때,
+     * 공개 처리된 동일 제목의 전래동화를 조회한다.
+     */
+    @Query("""
+        SELECT s.storyId FROM Story s
+        WHERE s.isPublic = true
+          AND s.title = :title
+        ORDER BY s.createdAt DESC
+    """)
+    List<Long> findLatestPublicStoryIdByTitle(
+            @Param("title") String title,
+            Pageable pageable
+    );
+
+    /**
      * 기존 메서드 - 사용하지 않지만 하위 호환을 위해 유지
      * @deprecated LibraryService.getLibrary()에서 더 이상 사용하지 않음
      */
