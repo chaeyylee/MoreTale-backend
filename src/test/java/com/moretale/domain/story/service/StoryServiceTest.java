@@ -91,6 +91,9 @@ class StoryServiceTest {
         given(storyRepository.findLatestStoryIdByUserAndTitle(
                 eq(1L), anyString(), any(Pageable.class)))
                 .willReturn(List.of());
+        given(storyRepository.findLatestPublicStoryIdByTitle(
+                anyString(), any(Pageable.class)))
+                .willReturn(List.of());
 
         StoryInitResponse response = storyService.getStoryInitData(1L, null);
 
@@ -103,7 +106,7 @@ class StoryServiceTest {
     }
 
     @Test
-    @DisplayName("getStoryInitData - FUN_ADVENTURE → 금도끼 은도끼 또는 토끼와 거북이 추천")
+    @DisplayName("getStoryInitData - FUN_ADVENTURE → 호랑이와 곶감 추천")
     void getStoryInitData_recommendedTale_funAdventure() {
         given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
         given(userProfileRepository.findFirstByUserOrderByCreatedAtDesc(testUser))
@@ -114,14 +117,14 @@ class StoryServiceTest {
         given(storyRepository.findLatestStoryIdByUserAndTitle(
                 anyLong(), anyString(), any(Pageable.class)))
                 .willReturn(List.of());
+        given(storyRepository.findLatestPublicStoryIdByTitle(
+                anyString(), any(Pageable.class)))
+                .willReturn(List.of());
 
         StoryInitResponse response = storyService.getStoryInitData(1L, null);
 
         assertThat(response.getRecommendedTaleTitle())
-                .isIn(
-                        TraditionalTale.GOLD_AXE_SILVER_AXE.getTitle(),
-                        TraditionalTale.RABBIT_AND_TURTLE.getTitle()
-                );
+                .isEqualTo(TraditionalTale.TIGER_AND_PERSIMMON.getTitle());
     }
 
     @Test
@@ -163,6 +166,51 @@ class StoryServiceTest {
     }
 
     @Test
+    @DisplayName("getStoryInitData - 내 추천 동화가 없으면 공개 전래동화 fallback 반환")
+    void getStoryInitData_withPublicStoryFallback() {
+        String recommendedTitle = TraditionalTale.findByPreference(StoryPreference.FUN_ADVENTURE).getTitle();
+
+        Slide coverSlide = Slide.builder()
+                .slideId(1L)
+                .order(0)
+                .imageUrl("https://example.com/public-cover.png")
+                .textKr("")
+                .textNative("")
+                .build();
+
+        Story publicStory = Story.builder()
+                .storyId(25L)
+                .title(recommendedTitle)
+                .user(testUser)
+                .profile(testProfile)
+                .primaryLanguage("ko")
+                .secondaryLanguage("vi")
+                .isPublic(true)
+                .build();
+        publicStory.addSlide(coverSlide);
+
+        given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+        given(userProfileRepository.findFirstByUserOrderByCreatedAtDesc(testUser))
+                .willReturn(Optional.of(testProfile));
+        given(storyRepository.findLatestStoryIdByProfileAndTitle(
+                eq(1L), eq(10L), eq(recommendedTitle), any(Pageable.class)))
+                .willReturn(List.of());
+        given(storyRepository.findLatestStoryIdByUserAndTitle(
+                eq(1L), eq(recommendedTitle), any(Pageable.class)))
+                .willReturn(List.of());
+        given(storyRepository.findLatestPublicStoryIdByTitle(
+                eq(recommendedTitle), any(Pageable.class)))
+                .willReturn(List.of(25L));
+        given(storyRepository.fetchByIdsWithSlides(List.of(25L)))
+                .willReturn(List.of(publicStory));
+
+        StoryInitResponse response = storyService.getStoryInitData(1L, null);
+
+        assertThat(response.getStoryId()).isEqualTo(25L);
+        assertThat(response.getCoverImageUrl()).isEqualTo("https://example.com/public-cover.png");
+    }
+
+    @Test
     @DisplayName("getStoryInitData - profileId 직접 지정 시 해당 프로필 사용")
     void getStoryInitData_withSpecificProfileId() {
         given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
@@ -173,6 +221,9 @@ class StoryServiceTest {
                 .willReturn(List.of());
         given(storyRepository.findLatestStoryIdByUserAndTitle(
                 anyLong(), anyString(), any(Pageable.class)))
+                .willReturn(List.of());
+        given(storyRepository.findLatestPublicStoryIdByTitle(
+                anyString(), any(Pageable.class)))
                 .willReturn(List.of());
 
         StoryInitResponse response = storyService.getStoryInitData(1L, 10L);
